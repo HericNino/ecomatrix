@@ -2,6 +2,9 @@ import express from 'express';
 import cors from 'cors';
 import {authRouter} from './routes/auth.routes.js';
 import {errorHandler} from './middleware/error.middleware.js';
+import {householdsRouter} from './routes/households.routes.js';
+import { authRequired } from './middleware/auth.middleware.js';
+
 
 export function createApp() {
     const app = express();
@@ -16,6 +19,8 @@ export function createApp() {
 
     //Routes
     app.use('/api/auth',authRouter);
+
+    app.use('/api/households',authRequired, householdsRouter);
 
     //Error handler
     app.use(errorHandler);
