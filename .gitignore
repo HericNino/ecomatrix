@@ -22,3 +22,22 @@ node_modules/
 dist/
 build/
 coverage/
+
+# Local certificates / keys / keystores
+*.pem
+*.key
+*.crt
+*.cer
+*.p12
+*.pfx
+*.jks
+
+# Local databases
+*.sqlite
+*.sqlite3
+*.db
+
+# Misc
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
