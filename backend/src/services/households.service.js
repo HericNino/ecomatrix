@@ -1,7 +1,5 @@
 import { getDb } from "../config/db.js";
 
-/** Helper:provjera da kucanstvo pripada korisniku */
-
 async function assertOwnership(db, korisnikId, kucanstvoId) {
     const [rows] = await db.query(
             `SELECT kucanstvo_id 
@@ -31,7 +29,6 @@ export async function listHouseholds(korisnikId) {
     [korisnikId]
     );
 
-    // Stats placeholder — popunit ćemo kad napravimo mjerenja/tarife
     return rows.map(r => ({
         ...r,
     ukupna_mjesecna_potrosnja_kwh: null,
@@ -76,7 +73,7 @@ export async function getHouseholdById(korisnikId, kucanstvoId) {
     throw err;
   }
     const r = rows[0];
- // placeholder statistika — kasnije ćemo izračunati iz mjerenja/računa
+
    return {
     id: r.id,
     naziv: r.naziv,

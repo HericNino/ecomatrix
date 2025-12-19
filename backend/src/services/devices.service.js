@@ -47,7 +47,6 @@ async function assertDeviceOwnership(db, korisnikId, uredjajId) {
   }
 }
 
-/** GET /api/households/:id/devices */
 export async function listDevicesForHousehold(korisnikId, kucanstvoId) {
   const db = getDb();
   await assertHouseholdOwnership(db, korisnikId, kucanstvoId);
@@ -99,7 +98,6 @@ export async function listDevicesForHousehold(korisnikId, kucanstvoId) {
   }));
 }
 
-/** POST /api/households/:id/devices */
 export async function createDeviceForHousehold(korisnikId, kucanstvoId, data) {
   const {
     prostorija_id,
@@ -114,7 +112,6 @@ export async function createDeviceForHousehold(korisnikId, kucanstvoId, data) {
   const db = getDb();
   await assertHouseholdOwnership(db, korisnikId, kucanstvoId);
 
-  // provjera da prostorija pripada tom kućanstvu
   const [pros] = await db.query(
     `SELECT p.prostorija_id
        FROM prostorija p
@@ -168,7 +165,6 @@ export async function createDeviceForHousehold(korisnikId, kucanstvoId, data) {
 }
 
 
-/** GET /api/devices/:deviceId */
 export async function getDeviceById(korisnikId, uredjajId) {
   const db = getDb();
 
@@ -236,7 +232,6 @@ export async function getDeviceById(korisnikId, uredjajId) {
   };
 }
 
-/** GET /api/devices/:deviceId/plug */
 export async function getPlugForDevice(korisnikId, uredjajId) {
   const db = getDb();
   await assertDeviceOwnership(db, korisnikId, uredjajId);
@@ -262,9 +257,9 @@ export async function getPlugForDevice(korisnikId, uredjajId) {
 
   return rows[0];
 }
-/** POST /api/devices/:deviceId/plug */
+
 export async function attachPlugToDevice(korisnikId, uredjajId, data) {
-  const { serijski_broj, proizvodjac, model } = data;
+  const { serijski_broj, proizvodjac, model, ip_adresa } = data;
   const db = getDb();
   await assertDeviceOwnership(db, korisnikId, uredjajId);
 
@@ -274,7 +269,6 @@ export async function attachPlugToDevice(korisnikId, uredjajId, data) {
     throw err;
   }
 
-  // provjeri da uređaj već nema utičnicu
   const [existingForDevice] = await db.query(
     `SELECT utikac_id FROM pametni_utikac WHERE uredjaj_id = ?`,
     [uredjajId]
@@ -286,7 +280,6 @@ export async function attachPlugToDevice(korisnikId, uredjajId, data) {
     throw err;
   }
 
-  // provjeri da serijski broj nije zauzet
   const [existingSerial] = await db.query(
     `SELECT utikac_id FROM pametni_utikac WHERE serijski_broj = ?`,
     [serijski_broj]
@@ -304,9 +297,10 @@ export async function attachPlugToDevice(korisnikId, uredjajId, data) {
         serijski_broj,
         proizvodjac,
         model,
-        status
-     ) VALUES (?, ?, ?, ?, 'aktivan')`,
-    [uredjajId, serijski_broj, proizvodjac || null, model || null]
+        status,
+        ip_adresa
+     ) VALUES (?, ?, ?, ?, 'aktivan', ?)`,
+    [uredjajId, serijski_broj, proizvodjac || null, model || null, ip_adresa || null]
   );
 
   return {
@@ -315,6 +309,67 @@ export async function attachPlugToDevice(korisnikId, uredjajId, data) {
     serijski_broj,
     proizvodjac: proizvodjac || null,
     model: model || null,
-    status: 'aktivan'
+    status: 'aktivan',
+    ip_adresa: ip_adresa || null
   };
+}
+
+export async function updatePlugForDevice(korisnikId, uredjajId, data) {
+  const { ip_adresa, proizvodjac, model, status } = data;
+  const db = getDb();
+  await assertDeviceOwnership(db, korisnikId, uredjajId);
+
+  const [existing] = await db.query(
+    `SELECT utikac_id FROM pametni_utikac WHERE uredjaj_id = ?`,
+    [uredjajId]
+  );
+
+  if (existing.length === 0) {
+    const err = new Error('Uređaj nema pridruženu pametnu utičnicu.');
+    err.status = 404;
+    throw err;
+  }
+
+  const updates = [];
+  const params = [];
+
+  if (ip_adresa !== undefined) {
+    updates.push('ip_adresa = ?');
+    params.push(ip_adresa);
+  }
+
+  if (proizvodjac !== undefined) {
+    updates.push('proizvodjac = ?');
+    params.push(proizvodjac);
+  }
+
+  if (model !== undefined) {
+    updates.push('model = ?');
+    params.push(model);
+  }
+
+  if (status !== undefined) {
+    if (!['aktivan', 'neaktivan', 'kvar'].includes(status)) {
+      const err = new Error('Neispravan status. Dozvoljeni: aktivan, neaktivan, kvar');
+      err.status = 400;
+      throw err;
+    }
+    updates.push('status = ?');
+    params.push(status);
+  }
+
+  if (updates.length === 0) {
+    const err = new Error('Nema podataka za ažuriranje.');
+    err.status = 400;
+    throw err;
+  }
+
+  params.push(uredjajId);
+
+  await db.query(
+    `UPDATE pametni_utikac SET ${updates.join(', ')} WHERE uredjaj_id = ?`,
+    params
+  );
+
+  return await getPlugForDevice(korisnikId, uredjajId);
 }

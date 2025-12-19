@@ -8,7 +8,6 @@ const SALT_ROUNDS = 10;
 export async function registerUser({ ime, prezime, email, lozinka }) {
   const db = getDb();
 
-  // provjeri postoji li već korisnik
   const [rows] = await db.query(
     'SELECT korisnik_id FROM korisnik WHERE email = ?',
     [email]
@@ -62,7 +61,6 @@ export async function loginUser({ email, lozinka }) {
     throw err;
   }
 
-  // uspoređujemo unesenu lozinku s hashom u koloni "lozinka"
   const passwordMatch = await bcrypt.compare(lozinka, user.lozinka);
 
   if (!passwordMatch) {
