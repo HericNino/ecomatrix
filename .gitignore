@@ -6,7 +6,19 @@ node_modules/
 
 # Local tooling / IDE
 .idea/
+.vscode/
 .claude/
+
+# Env files (keep examples)
+.env
+.env.*
+!*.env.example
+!.env.example
 
 # Logs
 *.log
+
+# Build artifacts
+dist/
+build/
+coverage/
