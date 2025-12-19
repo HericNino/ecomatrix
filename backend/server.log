@@ -1,9 +1,0 @@
-[dotenv@17.2.3] injecting env (10) from .env -- tip: ⚙️  load multiple .env files with { path: ['.env.local', '.env'] }
-MySQL pool created successfully
-🚀 Server running on http://localhost:4000
-[Scheduler] Automatsko prikupljanje pokrenuto (schedule: */5 * * * *)
-📊 Automatsko prikupljanje podataka pokrenuto
-[2025-12-18T23:30:00.708Z] Započinjem prikupljanje podataka...
-Pronađeno 1 aktivnih uređaja.
-✗ LED TV (Ninovo kućanstvo): Greška pri dohvaćanju potrošnje: Power meter podaci nisu dostupni u statusu.
-[2025-12-18T23:30:00.772Z] Prikupljanje završeno: 0 uspješno, 1 greške.

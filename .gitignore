@@ -3,3 +3,10 @@ node_modules/
 .DS_Store
 ._*
 ._.DS_Store
+
+# Local tooling / IDE
+.idea/
+.claude/
+
+# Logs
+*.log
