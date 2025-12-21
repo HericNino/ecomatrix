@@ -8,6 +8,8 @@ import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
 import Households from './pages/Households';
 import Devices from './pages/Devices';
+import Insights from './pages/Insights';
+import Goals from './pages/Goals';
 import Reports from './pages/Reports';
 import Settings from './pages/Settings';
 
@@ -57,6 +59,8 @@ function App() {
             <Route index element={<Dashboard />} />
             <Route path="households" element={<Households />} />
             <Route path="devices" element={<Devices />} />
+            <Route path="insights" element={<Insights />} />
+            <Route path="goals" element={<Goals />} />
             <Route path="reports" element={<Reports />} />
             <Route path="settings" element={<Settings />} />
           </Route>

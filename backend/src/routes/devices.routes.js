@@ -18,6 +18,10 @@ devicesRouter.post('/households/:id/devices', ctrl.createDeviceForHousehold);
 // Dohvaćanje pojedinačnog uređaja
 devicesRouter.get('/devices/:deviceId', ctrl.getDeviceById);
 
+// Ažuriranje i brisanje uređaja
+devicesRouter.put('/devices/:deviceId', ctrl.updateDevice);
+devicesRouter.delete('/devices/:deviceId', ctrl.deleteDevice);
+
 // Upravljanje pametnim utičnicama
 devicesRouter.get('/devices/:deviceId/plug', ctrl.getPlugForDevice);
 devicesRouter.post('/devices/:deviceId/plug', ctrl.attachPlugToDevice);

@@ -48,6 +48,16 @@ const DashboardLayout = () => {
             <span className="nav-text">Uređaji</span>
           </Link>
 
+          <Link to="/insights" className={`nav-item ${isActive('/insights')}`}>
+            <span className="nav-icon">🧠</span>
+            <span className="nav-text">Uvidi</span>
+          </Link>
+
+          <Link to="/goals" className={`nav-item ${isActive('/goals')}`}>
+            <span className="nav-icon">🎯</span>
+            <span className="nav-text">Ciljevi</span>
+          </Link>
+
           <Link to="/reports" className={`nav-item ${isActive('/reports')}`}>
             <span className="nav-icon">📈</span>
             <span className="nav-text">Izvještaji</span>

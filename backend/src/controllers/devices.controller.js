@@ -141,3 +141,57 @@ export async function updatePlugForDevice(req, res, next) {
     next(error);
   }
 }
+
+export async function updateDevice(req, res, next) {
+  try {
+    const korisnikId = req.user.id;
+    const uredjajId = Number(req.params.deviceId);
+    const {
+      naziv,
+      tip_uredjaja,
+      proizvodjac,
+      model,
+      nominalna_snaga,
+      datum_kupnje
+    } = req.body;
+
+    if (!naziv || !tip_uredjaja) {
+      return res.status(400).json({
+        message: 'naziv i tip_uredjaja su obavezni.'
+      });
+    }
+
+    if (!DOZVOLJENI_TIPOVI_UREDJAJA.includes(tip_uredjaja)) {
+      return res.status(400).json({
+        message: 'Neispravan tip uređaja.',
+        dozvoljeni_tipovi: DOZVOLJENI_TIPOVI_UREDJAJA
+      });
+    }
+
+    const device = await svc.updateDevice(korisnikId, uredjajId, {
+      naziv,
+      tip_uredjaja,
+      proizvodjac,
+      model,
+      nominalna_snaga,
+      datum_kupnje
+    });
+
+    res.json(device);
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function deleteDevice(req, res, next) {
+  try {
+    const korisnikId = req.user.id;
+    const uredjajId = Number(req.params.deviceId);
+
+    await svc.deleteDevice(korisnikId, uredjajId);
+
+    res.json({ success: true, message: 'Uređaj uspješno obrisan.' });
+  } catch (error) {
+    next(error);
+  }
+}

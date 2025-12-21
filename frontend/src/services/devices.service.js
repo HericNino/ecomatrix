@@ -1,6 +1,18 @@
 import api from './api';
 
 const devicesService = {
+  // Kreiraj novi uređaj za kućanstvo
+  async create(householdId, deviceData) {
+    const response = await api.post(`/households/${householdId}/devices`, deviceData);
+    return response.data;
+  },
+
+  // Dohvati uređaje za kućanstvo
+  async getForHousehold(householdId) {
+    const response = await api.get(`/households/${householdId}/devices`);
+    return response.data;
+  },
+
   // Dohvati pojedinačni uređaj
   async getById(deviceId) {
     const response = await api.get(`/devices/${deviceId}`);

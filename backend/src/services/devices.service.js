@@ -373,3 +373,62 @@ export async function updatePlugForDevice(korisnikId, uredjajId, data) {
 
   return await getPlugForDevice(korisnikId, uredjajId);
 }
+
+export async function updateDevice(korisnikId, uredjajId, data) {
+  const {
+    naziv,
+    tip_uredjaja,
+    proizvodjac,
+    model,
+    nominalna_snaga,
+    datum_kupnje
+  } = data;
+
+  const db = getDb();
+  await assertDeviceOwnership(db, korisnikId, uredjajId);
+
+  if (tip_uredjaja && !DOZVOLJENI_TIPOVI_UREDJAJA.includes(tip_uredjaja)) {
+    const err = new Error('Neispravan tip uređaja.');
+    err.status = 400;
+    throw err;
+  }
+
+  await db.query(
+    `UPDATE uredjaj
+     SET naziv = ?, tip_uredjaja = ?, proizvodjac = ?, model = ?,
+         nominalna_snaga = ?, datum_kupnje = ?
+     WHERE uredjaj_id = ?`,
+    [
+      naziv,
+      tip_uredjaja,
+      proizvodjac || null,
+      model || null,
+      nominalna_snaga || null,
+      datum_kupnje || null,
+      uredjajId
+    ]
+  );
+
+  return {
+    id: uredjajId,
+    naziv,
+    tip_uredjaja,
+    proizvodjac: proizvodjac || null,
+    model: model || null,
+    nominalna_snaga: nominalna_snaga || null,
+    datum_kupnje: datum_kupnje || null
+  };
+}
+
+export async function deleteDevice(korisnikId, uredjajId) {
+  const db = getDb();
+  await assertDeviceOwnership(db, korisnikId, uredjajId);
+
+  // Prvo obriši pametnu utičnicu ako postoji
+  await db.query('DELETE FROM pametni_utikac WHERE uredjaj_id = ?', [uredjajId]);
+
+  // Zatim obriši sam uređaj
+  await db.query('DELETE FROM uredjaj WHERE uredjaj_id = ?', [uredjajId]);
+
+  return { success: true };
+}
