@@ -11,7 +11,7 @@ export async function listHouseholds(req, res, next) {
     try {
         const korisnikId = req.user.id;
         const data = await svc.listHouseholds(korisnikId);
-        res.json(data);
+        res.json({ households: data });
     } catch (error) {
         next(error);
     }
@@ -20,16 +20,16 @@ export async function listHouseholds(req, res, next) {
 export async function createHousehold(req, res, next) {
     try {
         const korisnikId = req.user.id;
-        const { naziv, adresa, broj_clanova, kvadratura } = req.body;
-        
-        if(!naziv || !adresa){
-            return res.status(400).json({message:'Naziv i adresa su obavezni.'});
+        const { naziv, adresa, grad, povrsina } = req.body;
+
+        if(!naziv || !adresa || !grad){
+            return res.status(400).json({message:'Naziv, adresa i grad su obavezni.'});
         }
     const created =  await svc.createHousehold(korisnikId,{
         naziv,
         adresa,
-        broj_clanova:broj_clanova ?? 1,
-        kvadratura:kvadratura ?? null
+        grad,
+        povrsina: povrsina ?? null
     });
 
         res.status(201).json(created);
@@ -54,16 +54,16 @@ export async function listRooms(req, res, next) {
         const korisnikId = req.user.id;
         const kucanstvoId = Number(req.params.id);
         const data = await svc.listRooms(korisnikId, kucanstvoId);
-        res.json(data);
+        res.json({ rooms: data });
     } catch (error) {
         next(error);
-    }   
+    }
 }
 export async function createRoom(req, res, next) {
  try {
     const korisnikId = req.user.id;
     const kucanstvoId = Number(req.params.id);
-    const { naziv, tip, kvadratura } = req.body;
+    const { naziv, tip, povrsina } = req.body;
 
     if (!naziv) {
       return res.status(400).json({ message: 'naziv je obavezan.' });
@@ -81,10 +81,83 @@ export async function createRoom(req, res, next) {
     const created = await svc.createRoom(korisnikId, kucanstvoId, {
       naziv,
       tip: tipValue,
-      kvadratura: kvadratura ?? null
+      povrsina: povrsina ?? null
     });
 
     res.status(201).json(created);
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function updateHousehold(req, res, next) {
+  try {
+    const korisnikId = req.user.id;
+    const kucanstvoId = Number(req.params.id);
+    const { naziv, adresa, grad, povrsina } = req.body;
+
+    if (!naziv || !adresa || !grad) {
+      return res.status(400).json({ message: 'Naziv, adresa i grad su obavezni.' });
+    }
+
+    const updated = await svc.updateHousehold(korisnikId, kucanstvoId, {
+      naziv,
+      adresa,
+      grad,
+      povrsina: povrsina ?? null
+    });
+
+    res.json(updated);
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function deleteHousehold(req, res, next) {
+  try {
+    const korisnikId = req.user.id;
+    const kucanstvoId = Number(req.params.id);
+
+    await svc.deleteHousehold(korisnikId, kucanstvoId);
+
+    res.json({ success: true, message: 'Kućanstvo uspješno obrisano.' });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function updateRoom(req, res, next) {
+  try {
+    const korisnikId = req.user.id;
+    const kucanstvoId = Number(req.params.id);
+    const prostorijId = Number(req.params.roomId);
+    const { naziv, tip, povrsina } = req.body;
+
+    if (!naziv) {
+      return res.status(400).json({ message: 'Naziv je obavezan.' });
+    }
+
+    const updated = await svc.updateRoom(korisnikId, kucanstvoId, prostorijId, {
+      naziv,
+      tip: tip ?? 'ostalo',
+      povrsina: povrsina ?? null
+    });
+
+    res.json(updated);
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function deleteRoom(req, res, next) {
+  try {
+    const korisnikId = req.user.id;
+    const kucanstvoId = Number(req.params.id);
+    const prostorijId = Number(req.params.roomId);
+
+    await svc.deleteRoom(korisnikId, kucanstvoId, prostorijId);
+
+    res.json({ success: true, message: 'Prostorija uspješno obrisana.' });
   } catch (err) {
     next(err);
   }

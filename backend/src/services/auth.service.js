@@ -29,11 +29,21 @@ export async function registerUser({ ime, prezime, email, lozinka }) {
 
   const korisnikId = result.insertId;
 
+  // Kreiraj JWT token
+  const token = jwt.sign(
+    { id: korisnikId, email: email },
+    config.jwt.secret,
+    { expiresIn: config.jwt.expiresIn }
+  );
+
   return {
-    id: korisnikId,
-    ime,
-    prezime,
-    email
+    token,
+    user: {
+      id: korisnikId,
+      ime,
+      prezime,
+      email
+    }
   };
 }
 
@@ -77,7 +87,7 @@ export async function loginUser({ email, lozinka }) {
 
   return {
     token,
-    korisnik: {
+    user: {
       id: user.korisnik_id,
       ime: user.ime,
       prezime: user.prezime,

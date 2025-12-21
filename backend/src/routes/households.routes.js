@@ -4,8 +4,12 @@ import {
     listHouseholds,
     createHousehold,
     getHousehold,
+    updateHousehold,
+    deleteHousehold,
     listRooms,
-    createRoom
+    createRoom,
+    updateRoom,
+    deleteRoom
 } from "../controllers/households.controller.js";
 
 export const householdsRouter = express.Router();
@@ -15,8 +19,12 @@ export const householdsRouter = express.Router();
 householdsRouter.get("/", listHouseholds);
 householdsRouter.post("/", createHousehold);
 householdsRouter.get("/:id", getHousehold);
+householdsRouter.put("/:id", updateHousehold);
+householdsRouter.delete("/:id", deleteHousehold);
 
 //rooms
 householdsRouter.get("/:id/rooms", listRooms);
 householdsRouter.post("/:id/rooms", createRoom);
+householdsRouter.put("/:id/rooms/:roomId", updateRoom);
+householdsRouter.delete("/:id/rooms/:roomId", deleteRoom);
 

@@ -40,7 +40,7 @@ export async function me(req,res,next) {
     try {
         const userId = req.user.id;
         const korisnik = await getUserById(userId);
-        res.json(korisnik);
+        res.json({ user: korisnik });
     } catch (error) {
         next(error);
     }
