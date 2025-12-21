@@ -1,20 +1,18 @@
 import { getDb } from '../config/db.js';
 import * as costsService from './costs.service.js';
 
-/**
- * Kreira novi cilj štednje
- */
+// Kreiraj novi cilj stednje
 export async function createGoal(korisnikId, kucanstvoId, goalData) {
   const db = getDb();
 
-  // Provjeri vlasništvo
+  // Provjeri da li korisnik vlasnik kucanstva
   const [ownership] = await db.query(
     'SELECT kucanstvo_id FROM kucanstvo WHERE kucanstvo_id = ? AND korisnik_id = ?',
     [kucanstvoId, korisnikId]
   );
 
   if (ownership.length === 0) {
-    const err = new Error('Kućanstvo nije pronađeno.');
+    const err = new Error('Kucanstvo ne postoji');
     err.status = 404;
     throw err;
   }
@@ -41,20 +39,18 @@ export async function createGoal(korisnikId, kucanstvoId, goalData) {
   };
 }
 
-/**
- * Dohvaća sve ciljeve za kućanstvo
- */
+// Dohvati sve ciljeve za kucanstvo
 export async function getGoals(korisnikId, kucanstvoId, onlyActive = false) {
   const db = getDb();
 
-  // Provjeri vlasništvo
+  // Provjeri vlasnistvo
   const [ownership] = await db.query(
     'SELECT kucanstvo_id FROM kucanstvo WHERE kucanstvo_id = ? AND korisnik_id = ?',
     [kucanstvoId, korisnikId]
   );
 
   if (ownership.length === 0) {
-    const err = new Error('Kućanstvo nije pronađeno.');
+    const err = new Error('Kucanstvo ne postoji');
     err.status = 404;
     throw err;
   }
@@ -102,9 +98,7 @@ export async function getGoals(korisnikId, kucanstvoId, onlyActive = false) {
   return goalsWithProgress;
 }
 
-/**
- * Dohvaća pojedinačni cilj
- */
+// Dohvati jedan cilj
 export async function getGoal(korisnikId, kucanstvoId, ciljId) {
   const db = getDb();
 
@@ -127,7 +121,7 @@ export async function getGoal(korisnikId, kucanstvoId, ciljId) {
   );
 
   if (goals.length === 0) {
-    const err = new Error('Cilj nije pronađen.');
+    const err = new Error('Cilj ne postoji');
     err.status = 404;
     throw err;
   }
@@ -144,13 +138,11 @@ export async function getGoal(korisnikId, kucanstvoId, ciljId) {
   };
 }
 
-/**
- * Ažurira cilj
- */
+// Azuriraj cilj
 export async function updateGoal(korisnikId, kucanstvoId, ciljId, goalData) {
   const db = getDb();
 
-  // Provjeri vlasništvo
+  // Provjeri vlasnistvo
   const [existing] = await db.query(
     `SELECT c.cilj_id
      FROM cilj_stednje c
@@ -160,7 +152,7 @@ export async function updateGoal(korisnikId, kucanstvoId, ciljId, goalData) {
   );
 
   if (existing.length === 0) {
-    const err = new Error('Cilj nije pronađen.');
+    const err = new Error('Cilj ne postoji');
     err.status = 404;
     throw err;
   }
@@ -178,13 +170,11 @@ export async function updateGoal(korisnikId, kucanstvoId, ciljId, goalData) {
   return getGoal(korisnikId, kucanstvoId, ciljId);
 }
 
-/**
- * Briše cilj
- */
+// Obrisi cilj
 export async function deleteGoal(korisnikId, kucanstvoId, ciljId) {
   const db = getDb();
 
-  // Provjeri vlasništvo
+  // Provjeri vlasnistvo
   const [existing] = await db.query(
     `SELECT c.cilj_id
      FROM cilj_stednje c
@@ -194,7 +184,7 @@ export async function deleteGoal(korisnikId, kucanstvoId, ciljId) {
   );
 
   if (existing.length === 0) {
-    const err = new Error('Cilj nije pronađen.');
+    const err = new Error('Cilj ne postoji');
     err.status = 404;
     throw err;
   }
@@ -204,12 +194,10 @@ export async function deleteGoal(korisnikId, kucanstvoId, ciljId) {
   return { success: true, cilj_id: ciljId };
 }
 
-/**
- * Izračunava napredak prema cilju
- */
+// Izracunaj progress prema cilju
 async function calculateGoalProgress(korisnikId, goal) {
   try {
-    // Dohvati stvarnu potrošnju i troškove za razdoblje cilja
+    // Dohvati stvarnu potrosnju i troskove za razdoblje cilja
     const costs = await costsService.calculateCosts(
       korisnikId,
       goal.kucanstvo_id,
@@ -220,7 +208,7 @@ async function calculateGoalProgress(korisnikId, goal) {
     const trenutnaPotrosnja = costs.total.potrosnja_kwh;
     const trenutniTroskovi = costs.total.troskovi;
 
-    // Izračunaj postotak napretka
+    // Izracunaj postotak
     let postotakKwh = null;
     let postotakTroskova = null;
     let status = 'u_toku';

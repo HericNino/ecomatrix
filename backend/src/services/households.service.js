@@ -185,3 +185,52 @@ export async function deleteRoom(korisnikId, kucanstvoId, prostorijId) {
 
   return { success: true };
 }
+
+// Dohvati statistiku za kucanstvo
+export async function getHouseholdStats(korisnikId, kucanstvoId) {
+  const db = getDb();
+  await assertOwnership(db, korisnikId, kucanstvoId);
+
+  // Ukupan broj uredjaja
+  const [deviceCount] = await db.query(
+    `SELECT COUNT(*) as total
+     FROM uredjaj u
+     JOIN prostorija p ON u.prostorija_id = p.prostorija_id
+     WHERE p.kucanstvo_id = ?`,
+    [kucanstvoId]
+  );
+
+  // Broj aktivnih uredjaja (oni koji imaju pametni utikac)
+  const [activeCount] = await db.query(
+    `SELECT COUNT(*) as total
+     FROM uredjaj u
+     JOIN prostorija p ON u.prostorija_id = p.prostorija_id
+     LEFT JOIN pametni_utikac pu ON u.uredjaj_id = pu.uredjaj_id
+     WHERE p.kucanstvo_id = ? AND pu.ip_adresa IS NOT NULL`,
+    [kucanstvoId]
+  );
+
+  // Ukupna potrosnja za zadnjih 30 dana
+  const datumOd = new Date();
+  datumOd.setDate(datumOd.getDate() - 30);
+
+  const [consumption] = await db.query(
+    `SELECT
+       u.uredjaj_id,
+       MAX(m.vrijednost_kwh) - MIN(m.vrijednost_kwh) as device_consumption
+     FROM mjerenje m
+     JOIN uredjaj u ON m.uredjaj_id = u.uredjaj_id
+     JOIN prostorija p ON u.prostorija_id = p.prostorija_id
+     WHERE p.kucanstvo_id = ? AND m.datum_vrijeme >= ? AND m.validno = 1
+     GROUP BY u.uredjaj_id`,
+    [kucanstvoId, datumOd]
+  );
+
+  const totalConsumption = consumption.reduce((sum, row) => sum + (row.device_consumption || 0), 0);
+
+  return {
+    total_devices: deviceCount[0].total || 0,
+    active_devices: activeCount[0].total || 0,
+    total_consumption: parseFloat(totalConsumption.toFixed(2)) || 0
+  };
+}

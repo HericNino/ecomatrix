@@ -9,7 +9,8 @@ import {
     listRooms,
     createRoom,
     updateRoom,
-    deleteRoom
+    deleteRoom,
+    getStats
 } from "../controllers/households.controller.js";
 
 export const householdsRouter = express.Router();
@@ -18,6 +19,7 @@ export const householdsRouter = express.Router();
 
 householdsRouter.get("/", listHouseholds);
 householdsRouter.post("/", createHousehold);
+householdsRouter.get("/:id/stats", getStats);
 householdsRouter.get("/:id", getHousehold);
 householdsRouter.put("/:id", updateHousehold);
 householdsRouter.delete("/:id", deleteHousehold);

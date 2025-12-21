@@ -19,6 +19,7 @@ import householdsService from '../services/households.service';
 import measurementsService from '../services/measurements.service';
 import costsService from '../services/costs.service';
 import goalsService from '../services/goals.service';
+import reportsService from '../services/reports.service';
 import './Dashboard.css';
 
 const COLORS = ['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
@@ -31,12 +32,13 @@ const Dashboard = () => {
   const [chartData, setChartData] = useState({
     daily: [],
     topDevices: [],
-    byType: [],
+    byType: []
   });
   const [costsData, setCostsData] = useState(null);
   const [dailyCosts, setDailyCosts] = useState([]);
   const [activeGoals, setActiveGoals] = useState([]);
 
+  // Ucitaj sve podatke kad se komponenta mounta
   useEffect(() => {
     loadDashboardData();
   }, []);
@@ -59,75 +61,77 @@ const Dashboard = () => {
           console.error('Error loading stats:', err);
         }
 
-        // Učitaj podatke o troškovima
+        // Dohvati troskove za prvo kucanstvo (zadnjih 30 dana)
         try {
           const costs = await costsService.getCosts(firstHousehold.id_kucanstvo);
           setCostsData(costs);
         } catch (err) {
-          console.error('Error loading costs:', err);
+          console.error('Greska pri ucitavanju troskova:', err);
         }
 
-        // Učitaj dnevne troškove za grafikon
+        // Dohvati dnevne troskove za graf (zadnjih 7 dana)
         try {
           const daily = await costsService.getDailyCosts(firstHousehold.id_kucanstvo, 7);
-          setDailyCosts(daily.daily_costs || []);
+          setDailyCosts(daily.data || []);
         } catch (err) {
-          console.error('Error loading daily costs:', err);
+          console.error('Greska pri ucitavanju dnevnih troskova:', err);
         }
 
-        // Učitaj aktivne ciljeve
+        // Dohvati aktivne ciljeve (max 3 za dashboard)
         try {
           const goalsData = await goalsService.getAll(firstHousehold.id_kucanstvo);
           const active = (goalsData.goals || []).filter(g => g.aktivan);
-          setActiveGoals(active.slice(0, 3)); // Prikaži top 3 aktivna cilja
+          setActiveGoals(active.slice(0, 3));
         } catch (err) {
-          console.error('Error loading goals:', err);
+          console.error('Greska pri ucitavanju ciljeva:', err);
         }
 
-        // Generiraj podatke za grafikone (zadnjih 7 dana)
-        const dailyData = generateDailyData();
+        // Dohvati podatke za grafikone iz izvjestaja (zadnjih 7 dana)
+        try {
+          const datumDo = new Date().toISOString().split('T')[0];
+          const datumOd = new Date();
+          datumOd.setDate(datumOd.getDate() - 7);
+          const datumOdStr = datumOd.toISOString().split('T')[0];
 
-        // Učitaj sve uređaje za top potrošače
-        let allDevices = [];
-        for (const household of allHouseholds) {
-          try {
-            const devicesData = await householdsService.getDevices(household.id_kucanstvo);
-            const devices = (devicesData.devices || devicesData || []).map(d => ({
-              ...d,
-              kucanstvo_naziv: household.naziv
-            }));
-            allDevices.push(...devices);
-          } catch (err) {
-            console.error(`Error loading devices for household ${household.id_kucanstvo}:`, err);
-          }
+          const reportData = await reportsService.getConsumptionReport(
+            firstHousehold.id_kucanstvo,
+            datumOdStr,
+            datumDo,
+            'day'
+          );
+
+          // Dnevna potrosnja
+          const dailyData = (reportData.timeSeries || []).map(item => ({
+            dan: new Date(item.datum).toLocaleDateString('hr-HR', { weekday: 'short' }),
+            potrosnja: item.potrosnja_kwh || 0,
+          }));
+
+          // Top 5 uredjaja
+          const topDevicesData = (reportData.topDevices || []).slice(0, 5).map(device => ({
+            name: device.naziv,
+            potrosnja: device.potrosnja_kwh || 0,
+          }));
+
+          // Potrosnja po tipu uredjaja
+          const byTypeData = (reportData.byDeviceType || []).map(item => ({
+            name: getDeviceTypeLabel(item.tip_uredjaja),
+            value: item.potrosnja_kwh || 0,
+          }));
+
+          setChartData({
+            daily: dailyData,
+            topDevices: topDevicesData,
+            byType: byTypeData,
+          });
+        } catch (err) {
+          console.error('Greska pri ucitavanju podataka za grafikone:', err);
+          // Ako nema podataka, ostavi prazne grafove
+          setChartData({
+            daily: [],
+            topDevices: [],
+            byType: [],
+          });
         }
-
-        // Top 5 uređaja po potrošnji (mock data za sada)
-        const topDevicesData = allDevices.slice(0, 5).map(device => ({
-          name: device.naziv,
-          potrosnja: Math.random() * 100 + 20, // Mock data
-        }));
-
-        // Potrošnja po tipu uređaja
-        const devicesByType = {};
-        allDevices.forEach(device => {
-          const type = device.tip_uredjaja || 'ostalo';
-          if (!devicesByType[type]) {
-            devicesByType[type] = 0;
-          }
-          devicesByType[type] += Math.random() * 50 + 10; // Mock data
-        });
-
-        const byTypeData = Object.entries(devicesByType).map(([type, value]) => ({
-          name: getDeviceTypeLabel(type),
-          value: parseFloat(value.toFixed(2)),
-        }));
-
-        setChartData({
-          daily: dailyData,
-          topDevices: topDevicesData,
-          byType: byTypeData,
-        });
       }
     } catch (err) {
       setError('Greška prilikom učitavanja podataka');
@@ -135,21 +139,6 @@ const Dashboard = () => {
     } finally {
       setLoading(false);
     }
-  };
-
-  const generateDailyData = () => {
-    const data = [];
-    const today = new Date();
-    for (let i = 6; i >= 0; i--) {
-      const date = new Date(today);
-      date.setDate(date.getDate() - i);
-      const dayName = date.toLocaleDateString('hr-HR', { weekday: 'short' });
-      data.push({
-        dan: dayName,
-        potrosnja: Math.random() * 30 + 10, // Mock data 10-40 kWh
-      });
-    }
-    return data;
   };
 
   const getDeviceTypeLabel = (type) => {
@@ -217,7 +206,7 @@ const Dashboard = () => {
         <div className="stat-card">
           <div className="stat-icon">💰</div>
           <div className="stat-content">
-            <h3>{costsData?.ukupni_troskovi?.toFixed(2) || '0.00'} €</h3>
+            <h3>{costsData?.total?.troskovi?.toFixed(2) || '0.00'} €</h3>
             <p>Ukupni troškovi</p>
           </div>
         </div>

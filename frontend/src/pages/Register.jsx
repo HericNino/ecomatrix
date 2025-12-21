@@ -26,14 +26,15 @@ const Register = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // Validacija lozinki
+    // Provjeri da se lozinke podudaraju
     if (formData.lozinka !== formData.ponovi_lozinku) {
-      toast.error('Lozinke se ne podudaraju');
+      toast.error('Lozinke nisu iste');
       return;
     }
 
+    // Minimalna duzina lozinke
     if (formData.lozinka.length < 6) {
-      toast.error('Lozinka mora imati najmanje 6 znakova');
+      toast.error('Lozinka treba biti duza od 6 znakova');
       return;
     }
 
@@ -41,10 +42,10 @@ const Register = () => {
 
     try {
       await register(formData);
-      toast.success('Račun uspješno kreiran! Dobrodošli.');
+      toast.success('Dobrodošli u EcoMetrix!');
       setTimeout(() => navigate('/'), 500);
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Greška prilikom registracije');
+      toast.error(err.response?.data?.message || 'Nešto je pošlo po zlu');
     } finally {
       setLoading(false);
     }

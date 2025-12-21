@@ -1,8 +1,6 @@
 import { getDb } from '../config/db.js';
 
-/**
- * Dohvaća postavke cijene struje za kućanstvo
- */
+// Dohvati cijenu struje za kucanstvo
 export async function getElectricityPrice(korisnikId, kucanstvoId) {
   const db = getDb();
 
@@ -14,31 +12,29 @@ export async function getElectricityPrice(korisnikId, kucanstvoId) {
   );
 
   if (rows.length === 0) {
-    const err = new Error('Kućanstvo nije pronađeno.');
+    const err = new Error('Kucanstvo ne postoji');
     err.status = 404;
     throw err;
   }
 
   return {
     cijena_kwh: parseFloat(rows[0].cijena_kwh),
-    valuta: rows[0].valuta,
+    valuta: rows[0].valuta
   };
 }
 
-/**
- * Postavlja cijenu struje za kućanstvo
- */
+// Postavi cijenu struje za kucanstvo
 export async function setElectricityPrice(korisnikId, kucanstvoId, cijenaKwh, valuta = 'EUR') {
   const db = getDb();
 
-  // Provjeri vlasništvo
+  // Provjeri da li korisnik vlasnik ovog kucanstva
   const [ownership] = await db.query(
     'SELECT kucanstvo_id FROM kucanstvo WHERE kucanstvo_id = ? AND korisnik_id = ?',
     [kucanstvoId, korisnikId]
   );
 
   if (ownership.length === 0) {
-    const err = new Error('Kućanstvo nije pronađeno.');
+    const err = new Error('Kucanstvo ne postoji');
     err.status = 404;
     throw err;
   }
@@ -50,20 +46,18 @@ export async function setElectricityPrice(korisnikId, kucanstvoId, cijenaKwh, va
 
   return {
     cijena_kwh: parseFloat(cijenaKwh),
-    valuta,
+    valuta
   };
 }
 
-/**
- * Izračunava troškove potrošnje za određeno razdoblje
- */
+// Izracunaj troskove za odredjeno razdoblje
 export async function calculateCosts(korisnikId, kucanstvoId, datumOd, datumDo) {
   const db = getDb();
 
-  // Provjeri vlasništvo i dohvati cijenu
+  // Prvo dohvati cijenu struje
   const priceInfo = await getElectricityPrice(korisnikId, kucanstvoId);
 
-  // Dohvati potrošnju po uređajima
+  // Dohvati potrosnju po uredjajima - koristimo MIN/MAX jer su mjerenja kumulativna
   const [devices] = await db.query(
     `SELECT
       u.uredjaj_id,

@@ -5,20 +5,23 @@ import { config } from '../config/env.js';
 
 const SALT_ROUNDS = 10;
 
+// Registracija - kreira novi korisnicki racun
 export async function registerUser({ ime, prezime, email, lozinka }) {
   const db = getDb();
 
+  // Provjeri da li email vec postoji
   const [rows] = await db.query(
     'SELECT korisnik_id FROM korisnik WHERE email = ?',
     [email]
   );
 
   if (rows.length > 0) {
-    const err = new Error('Korisnik s ovom e-mail adresom već postoji.');
+    const err = new Error('Email adresa se vec koristi');
     err.status = 400;
     throw err;
   }
 
+  // Hashiraj lozinku
   const hash = await bcrypt.hash(lozinka, SALT_ROUNDS);
 
   const [result] = await db.query(
@@ -29,7 +32,7 @@ export async function registerUser({ ime, prezime, email, lozinka }) {
 
   const korisnikId = result.insertId;
 
-  // Kreiraj JWT token
+  // Generiraj token za auto-login nakon registracije
   const token = jwt.sign(
     { id: korisnikId, email: email },
     config.jwt.secret,
@@ -47,6 +50,7 @@ export async function registerUser({ ime, prezime, email, lozinka }) {
   };
 }
 
+// Login korisnika
 export async function loginUser({ email, lozinka }) {
   const db = getDb();
 
@@ -58,27 +62,29 @@ export async function loginUser({ email, lozinka }) {
   );
 
   if (rows.length === 0) {
-    const err = new Error('Neispravni podaci za prijavu.');
+    const err = new Error('Email ili lozinka nisu tocni');
     err.status = 401;
     throw err;
   }
 
   const user = rows[0];
 
+  // Provjeri da li je racun aktivan
   if (!user.aktivan) {
-    const err = new Error('Korisnički račun je deaktiviran.');
+    const err = new Error('Racun je deaktiviran');
     err.status = 403;
     throw err;
   }
 
+  // Provjeri lozinku
   const passwordMatch = await bcrypt.compare(lozinka, user.lozinka);
-
   if (!passwordMatch) {
-    const err = new Error('Neispravni podaci za prijavu.');
+    const err = new Error('Email ili lozinka nisu tocni');
     err.status = 401;
     throw err;
   }
 
+  // Sve ok, generiraj token
   const token = jwt.sign(
     { id: user.korisnik_id, email: user.email },
     config.jwt.secret,
@@ -96,6 +102,7 @@ export async function loginUser({ email, lozinka }) {
   };
 }
 
+// Dohvati korisnika po ID-u
 export async function getUserById(id) {
   const db = getDb();
 
@@ -107,7 +114,7 @@ export async function getUserById(id) {
   );
 
   if (rows.length === 0) {
-    const err = new Error('Korisnik nije pronađen.');
+    const err = new Error('Korisnik ne postoji');
     err.status = 404;
     throw err;
   }

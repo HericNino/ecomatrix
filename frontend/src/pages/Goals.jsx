@@ -67,7 +67,7 @@ const Goals = () => {
 
   const handleOpenModal = (goal = null) => {
     if (goal) {
-      // Edit mode
+      // Uredi postojeci cilj
       setEditingGoal(goal);
       setFormData({
         naziv: goal.naziv,
@@ -75,10 +75,10 @@ const Goals = () => {
         cilj_kwh: goal.cilj_kwh || '',
         cilj_troskova: goal.cilj_troskova || '',
         datum_pocetka: goal.datum_pocetka,
-        datum_zavrsetka: goal.datum_zavrsetka,
+        datum_zavrsetka: goal.datum_zavrsetka
       });
     } else {
-      // Create mode - set default dates
+      // Novi cilj - postavi defaultne datume za trenutni mjesec
       const today = new Date();
       const startDate = new Date(today.getFullYear(), today.getMonth(), 1);
       const endDate = new Date(today.getFullYear(), today.getMonth() + 1, 0);
@@ -90,7 +90,7 @@ const Goals = () => {
         cilj_kwh: '',
         cilj_troskova: '',
         datum_pocetka: startDate.toISOString().split('T')[0],
-        datum_zavrsetka: endDate.toISOString().split('T')[0],
+        datum_zavrsetka: endDate.toISOString().split('T')[0]
       });
     }
     setShowModal(true);

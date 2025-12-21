@@ -1,4 +1,6 @@
 import * as svc from '../services/households.service.js';
+
+// Dozvoljeni tipovi prostorija
 const DOZVOLJENI_TIPOVI_PROSTORIJE = [
   'dnevna_soba',
   'kuhinja',
@@ -7,6 +9,8 @@ const DOZVOLJENI_TIPOVI_PROSTORIJE = [
   'hodnik',
   'ostalo'
 ];
+
+// Lista svih kucanstava za korisnika
 export async function listHouseholds(req, res, next) {
     try {
         const korisnikId = req.user.id;
@@ -17,20 +21,22 @@ export async function listHouseholds(req, res, next) {
     }
 }
 
+// Kreiranje novog kucanstva
 export async function createHousehold(req, res, next) {
     try {
         const korisnikId = req.user.id;
         const { naziv, adresa, grad, povrsina } = req.body;
 
-        if(!naziv || !adresa || !grad){
-            return res.status(400).json({message:'Naziv, adresa i grad su obavezni.'});
+        if (!naziv || !adresa || !grad) {
+            return res.status(400).json({ message: 'Unesite naziv, adresu i grad' });
         }
-    const created =  await svc.createHousehold(korisnikId,{
-        naziv,
-        adresa,
-        grad,
-        povrsina: povrsina ?? null
-    });
+
+        const created = await svc.createHousehold(korisnikId, {
+            naziv,
+            adresa,
+            grad,
+            povrsina: povrsina ?? null
+        });
 
         res.status(201).json(created);
     } catch (error) {
@@ -38,10 +44,11 @@ export async function createHousehold(req, res, next) {
     }
 }
 
+// Dohvati jedno kucanstvo
 export async function getHousehold(req, res, next) {
     try {
         const korisnikId = req.user.id;
-        const id= Number(req.params.id);
+        const id = Number(req.params.id);
         const data = await svc.getHouseholdById(korisnikId, id);
         res.json(data);
     } catch (error) {
@@ -49,6 +56,7 @@ export async function getHousehold(req, res, next) {
     }
 }
 
+// Lista prostorija u kucanstvu
 export async function listRooms(req, res, next) {
     try {
         const korisnikId = req.user.id;
@@ -158,6 +166,20 @@ export async function deleteRoom(req, res, next) {
     await svc.deleteRoom(korisnikId, kucanstvoId, prostorijId);
 
     res.json({ success: true, message: 'Prostorija uspješno obrisana.' });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// Statistika za kucanstvo
+export async function getStats(req, res, next) {
+  try {
+    const korisnikId = req.user.id;
+    const kucanstvoId = Number(req.params.id);
+
+    const stats = await svc.getHouseholdStats(korisnikId, kucanstvoId);
+
+    res.json(stats);
   } catch (err) {
     next(err);
   }

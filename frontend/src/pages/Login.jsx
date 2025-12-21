@@ -7,7 +7,7 @@ import './Auth.css';
 const Login = () => {
   const [formData, setFormData] = useState({
     email: '',
-    lozinka: '',
+    lozinka: ''
   });
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
@@ -16,7 +16,7 @@ const Login = () => {
   const handleChange = (e) => {
     setFormData({
       ...formData,
-      [e.target.name]: e.target.value,
+      [e.target.name]: e.target.value
     });
   };
 
@@ -26,10 +26,11 @@ const Login = () => {
 
     try {
       await login(formData.email, formData.lozinka);
-      toast.success('Uspješno ste se prijavili!');
+      toast.success('Prijava uspješna!');
+      // Malo pričekaj pa preusmjeri
       setTimeout(() => navigate('/'), 500);
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Greška prilikom prijave');
+      toast.error(err.response?.data?.message || 'Nešto nije uredu, probajte ponovo');
     } finally {
       setLoading(false);
     }

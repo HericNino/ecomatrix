@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import householdsService from '../services/households.service';
 import devicesService from '../services/devices.service';
+import measurementsService from '../services/measurements.service';
 import Modal from '../components/Modal';
 import ConfirmDialog from '../components/ConfirmDialog';
 import './Devices.css';
@@ -26,10 +27,12 @@ const Devices = () => {
   const [households, setHouseholds] = useState([]);
   const [rooms, setRooms] = useState([]);
   const [devices, setDevices] = useState([]);
+  const [deviceMeasurements, setDeviceMeasurements] = useState({});
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterHousehold, setFilterHousehold] = useState('all');
   const [filterType, setFilterType] = useState('all');
+  const [collectingData, setCollectingData] = useState({});
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState('create');
@@ -80,10 +83,62 @@ const Devices = () => {
         }
       }
       setDevices(allDevices);
+
+      // Ucitaj zadnja mjerenja za sve uredjaje
+      await loadDeviceMeasurements(allDevices);
     } catch (err) {
       toast.error('Greška prilikom učitavanja podataka');
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Ucitaj zadnja mjerenja za uredjaje
+  const loadDeviceMeasurements = async (devicesList) => {
+    const measurements = {};
+
+    for (const device of devicesList) {
+      try {
+        const data = await measurementsService.getDeviceMeasurements(
+          device.id_uredjaj || device.id,
+          null,
+          null,
+          1 // samo zadnje mjerenje
+        );
+
+        if (data.measurements && data.measurements.length > 0) {
+          measurements[device.id_uredjaj || device.id] = data.measurements[0];
+        }
+      } catch (err) {
+        // Nema mjerenja za ovaj uredjaj ili greska
+        console.error(`Greska pri ucitavanju mjerenja za uredjaj ${device.id_uredjaj}:`, err);
+      }
+    }
+
+    setDeviceMeasurements(measurements);
+  };
+
+  // Rucno prikupi podatke sa uredjaja
+  const handleCollectData = async (device) => {
+    const deviceId = device.id_uredjaj || device.id;
+
+    try {
+      setCollectingData({ ...collectingData, [deviceId]: true });
+      await measurementsService.collectDeviceData(deviceId);
+      toast.success(`Podaci prikupljeni sa ${device.naziv}`);
+
+      // Osvjezi mjerenje za ovaj uredjaj
+      const data = await measurementsService.getDeviceMeasurements(deviceId, null, null, 1);
+      if (data.measurements && data.measurements.length > 0) {
+        setDeviceMeasurements({
+          ...deviceMeasurements,
+          [deviceId]: data.measurements[0]
+        });
+      }
+    } catch (err) {
+      toast.error('Greška pri prikupljanju podataka');
+    } finally {
+      setCollectingData({ ...collectingData, [deviceId]: false });
     }
   };
 
@@ -321,6 +376,23 @@ const Devices = () => {
               <div className="device-card-body">
                 <h3>{device.naziv}</h3>
                 <p className="device-type">{getDeviceLabel(device.tip_uredjaja)}</p>
+
+                {/* Prikaz podataka o potrosnji */}
+                {deviceMeasurements[device.id_uredjaj || device.id] && (
+                  <div className="device-consumption">
+                    <div className="consumption-main">
+                      <span className="consumption-value">
+                        {deviceMeasurements[device.id_uredjaj || device.id].vrijednost_kwh.toFixed(2)}
+                      </span>
+                      <span className="consumption-unit">kWh</span>
+                    </div>
+                    <div className="consumption-time">
+                      Zadnje mjerenje:{' '}
+                      {new Date(deviceMeasurements[device.id_uredjaj || device.id].datum_vrijeme).toLocaleString('hr-HR')}
+                    </div>
+                  </div>
+                )}
+
                 <div className="device-info">
                   <span className="info-label">Kućanstvo:</span>
                   <span className="info-value">{device.kucanstvo_naziv}</span>
@@ -343,6 +415,17 @@ const Devices = () => {
                       🔌 {device.pametni_utikac.status === 'aktivan' ? 'Aktivna' : 'Neaktivna'}
                     </span>
                   </div>
+                )}
+
+                {/* Gumb za rucno prikupljanje podataka */}
+                {device.pametni_utikac && (
+                  <button
+                    className="collect-data-btn"
+                    onClick={() => handleCollectData(device)}
+                    disabled={collectingData[device.id_uredjaj || device.id]}
+                  >
+                    {collectingData[device.id_uredjaj || device.id] ? '⏳ Prikupljam...' : '🔄 Osvježi podatke'}
+                  </button>
                 )}
               </div>
             </div>

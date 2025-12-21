@@ -28,7 +28,7 @@
   color: #7f8c8d;
 }
 
-/* Stats Grid */
+/* Statisticke kartice */
 .stats-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));

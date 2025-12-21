@@ -8,6 +8,7 @@ import { measurementsRouter } from './routes/measurements.routes.js';
 import { insightsRouter } from './routes/insights.routes.js';
 import { costsRouter } from './routes/costs.routes.js';
 import { goalsRouter } from './routes/goals.routes.js';
+import { reportsRouter } from './routes/reports.routes.js';
 import { authRequired } from './middleware/auth.middleware.js';
 
 
@@ -31,6 +32,7 @@ export function createApp()
     app.use('/api', authRequired, insightsRouter);
     app.use('/api', authRequired, costsRouter);
     app.use('/api', authRequired, goalsRouter);
+    app.use('/api', authRequired, reportsRouter);
 
     //Error handler
     app.use(errorHandler);
