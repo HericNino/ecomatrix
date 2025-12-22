@@ -226,7 +226,10 @@ export async function getHouseholdStats(korisnikId, kucanstvoId) {
     [kucanstvoId, datumOd]
   );
 
-  const totalConsumption = consumption.reduce((sum, row) => sum + (row.device_consumption || 0), 0);
+  const totalConsumption = consumption.reduce((sum, row) => {
+    const consumption = parseFloat(row.device_consumption) || 0;
+    return sum + consumption;
+  }, 0);
 
   return {
     total_devices: deviceCount[0].total || 0,

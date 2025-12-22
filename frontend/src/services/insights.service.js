@@ -14,6 +14,13 @@ const insightsService = {
     return response.data;
   },
 
+  // Dohvati ML-bazirane preporuke (napredne)
+  async getMLRecommendations(householdId, danaUnazad = 30) {
+    const params = { dana_unazad: danaUnazad };
+    const response = await api.get(`/households/${householdId}/ml-recommendations`, { params });
+    return response.data;
+  },
+
   // Dohvati usporedbu s prošlim razdobljem
   async getComparison(householdId, danaUnazad = 30) {
     const params = { dana_unazad: danaUnazad };

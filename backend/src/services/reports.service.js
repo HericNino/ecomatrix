@@ -73,7 +73,7 @@ export async function generateConsumptionReport(korisnikId, kucanstvoId, datumOd
         potrosnja_kwh: 0
       };
     }
-    timeSeriesMap[row.period].potrosnja_kwh += (row.potrosnja_kwh || 0);
+    timeSeriesMap[row.period].potrosnja_kwh += (parseFloat(row.potrosnja_kwh) || 0);
   });
 
   const timeSeriesData = Object.values(timeSeriesMap).map(item => ({
@@ -132,7 +132,7 @@ export async function generateConsumptionReport(korisnikId, kucanstvoId, datumOd
         potrosnja_kwh: 0
       };
     }
-    roomMap[row.prostorija_id].potrosnja_kwh += (row.potrosnja_kwh || 0);
+    roomMap[row.prostorija_id].potrosnja_kwh += (parseFloat(row.potrosnja_kwh) || 0);
   });
 
   const roomData = Object.values(roomMap)
@@ -171,7 +171,7 @@ export async function generateConsumptionReport(korisnikId, kucanstvoId, datumOd
       };
     }
     typeMap[row.tip_uredjaja].devices.add(row.uredjaj_id);
-    typeMap[row.tip_uredjaja].potrosnja_kwh += (row.potrosnja_kwh || 0);
+    typeMap[row.tip_uredjaja].potrosnja_kwh += (parseFloat(row.potrosnja_kwh) || 0);
   });
 
   const deviceTypeData = Object.values(typeMap)
@@ -207,18 +207,18 @@ export async function generateConsumptionReport(korisnikId, kucanstvoId, datumOd
       naziv: device.naziv,
       tip_uredjaja: device.tip_uredjaja,
       prostorija: device.prostorija,
-      potrosnja_kwh: parseFloat((device.potrosnja_kwh || 0).toFixed(2))
+      potrosnja_kwh: parseFloat((parseFloat(device.potrosnja_kwh) || 0).toFixed(2))
     })),
     byRoom: roomData.map(room => ({
       prostorija_id: room.prostorija_id,
       prostorija: room.prostorija,
       tip_prostorije: room.tip_prostorije,
-      potrosnja_kwh: parseFloat((room.potrosnja_kwh || 0).toFixed(2))
+      potrosnja_kwh: parseFloat((parseFloat(room.potrosnja_kwh) || 0).toFixed(2))
     })),
     byDeviceType: deviceTypeData.map(type => ({
       tip_uredjaja: type.tip_uredjaja,
       broj_uredjaja: type.broj_uredjaja,
-      potrosnja_kwh: parseFloat((type.potrosnja_kwh || 0).toFixed(2))
+      potrosnja_kwh: parseFloat((parseFloat(type.potrosnja_kwh) || 0).toFixed(2))
     }))
   };
 }

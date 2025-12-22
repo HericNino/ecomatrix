@@ -38,6 +38,9 @@ const Devices = () => {
   const [modalMode, setModalMode] = useState('create');
   const [editingDeviceId, setEditingDeviceId] = useState(null);
 
+  const [isPlugModalOpen, setIsPlugModalOpen] = useState(false);
+  const [selectedDevice, setSelectedDevice] = useState(null);
+
   const [deviceForm, setDeviceForm] = useState({
     kucanstvo_id: '',
     prostorija_id: '',
@@ -47,6 +50,13 @@ const Devices = () => {
     model: '',
     nominalna_snaga: '',
     datum_kupnje: '',
+  });
+
+  const [plugForm, setPlugForm] = useState({
+    serijski_broj: '',
+    proizvodjac: 'Shelly',
+    model: 'Plug S Gen3',
+    ip_adresa: '',
   });
 
   const [confirmDialog, setConfirmDialog] = useState({
@@ -248,6 +258,45 @@ const Devices = () => {
     });
   };
 
+  const openPlugModal = (device) => {
+    setSelectedDevice(device);
+    if (device.pametni_utikac) {
+      setPlugForm({
+        serijski_broj: device.pametni_utikac.serijski_broj || '',
+        proizvodjac: 'Shelly',
+        model: 'Plug S Gen3',
+        ip_adresa: device.pametni_utikac.ip_adresa || '',
+      });
+    } else {
+      setPlugForm({
+        serijski_broj: '',
+        proizvodjac: 'Shelly',
+        model: 'Plug S Gen3',
+        ip_adresa: '',
+      });
+    }
+    setIsPlugModalOpen(true);
+  };
+
+  const handleSavePlug = async (e) => {
+    e.preventDefault();
+    const deviceId = selectedDevice.id_uredjaj || selectedDevice.id;
+
+    try {
+      if (selectedDevice.pametni_utikac) {
+        await devicesService.updatePlug(deviceId, plugForm);
+        toast.success('Pametna utičnica uspješno ažurirana!');
+      } else {
+        await devicesService.attachPlug(deviceId, plugForm);
+        toast.success('Pametna utičnica uspješno dodana!');
+      }
+      setIsPlugModalOpen(false);
+      await loadData();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Greška prilikom spremanja utičnice');
+    }
+  };
+
   const getDeviceIcon = (type) => {
     const deviceType = DEVICE_TYPES.find((dt) => dt.value === type);
     return deviceType ? deviceType.icon : '⚡';
@@ -417,16 +466,26 @@ const Devices = () => {
                   </div>
                 )}
 
-                {/* Gumb za rucno prikupljanje podataka */}
-                {device.pametni_utikac && (
+                {/* Gumbi za upravljanje */}
+                <div className="device-actions">
                   <button
-                    className="collect-data-btn"
-                    onClick={() => handleCollectData(device)}
-                    disabled={collectingData[device.id_uredjaj || device.id]}
+                    className="btn-secondary btn-sm"
+                    onClick={() => openPlugModal(device)}
+                    title={device.pametni_utikac ? 'Uredi utičnicu' : 'Dodaj utičnicu'}
                   >
-                    {collectingData[device.id_uredjaj || device.id] ? '⏳ Prikupljam...' : '🔄 Osvježi podatke'}
+                    {device.pametni_utikac ? '🔌 Uredi utičnicu' : '🔌 Dodaj utičnicu'}
                   </button>
-                )}
+
+                  {device.pametni_utikac && (
+                    <button
+                      className="btn-primary btn-sm"
+                      onClick={() => handleCollectData(device)}
+                      disabled={collectingData[device.id_uredjaj || device.id]}
+                    >
+                      {collectingData[device.id_uredjaj || device.id] ? '⏳ Prikupljam...' : '🔄 Osvježi podatke'}
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
           ))}
@@ -579,6 +638,88 @@ const Devices = () => {
             </button>
             <button type="submit" className="btn-primary">
               {modalMode === 'create' ? 'Dodaj uređaj' : 'Spremi promjene'}
+            </button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Plug Management Modal */}
+      <Modal
+        isOpen={isPlugModalOpen}
+        onClose={() => setIsPlugModalOpen(false)}
+        title={selectedDevice?.pametni_utikac ? 'Uredi pametnu utičnicu' : 'Dodaj pametnu utičnicu'}
+      >
+        <form onSubmit={handleSavePlug} className="device-form">
+          <p className="modal-description">
+            Povežite Shelly pametnu utičnicu za automatsko praćenje potrošnje uređaja.
+          </p>
+
+          <div className="form-group">
+            <label htmlFor="serijski_broj">Serijski broj *</label>
+            <input
+              type="text"
+              id="serijski_broj"
+              value={plugForm.serijski_broj}
+              onChange={(e) => setPlugForm({ ...plugForm, serijski_broj: e.target.value })}
+              required
+              placeholder="ShellyPlug-001"
+            />
+            <small>Jedinstveni identifikator utičnice</small>
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="ip_adresa">IP adresa *</label>
+            <input
+              type="text"
+              id="ip_adresa"
+              value={plugForm.ip_adresa}
+              onChange={(e) => setPlugForm({ ...plugForm, ip_adresa: e.target.value })}
+              required
+              placeholder="192.168.1.71"
+              pattern="^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$"
+            />
+            <small>IP adresa utičnice u lokalnoj mreži</small>
+          </div>
+
+          <div className="form-row">
+            <div className="form-group">
+              <label htmlFor="proizvodjac">Proizvođač</label>
+              <input
+                type="text"
+                id="proizvodjac"
+                value={plugForm.proizvodjac}
+                onChange={(e) => setPlugForm({ ...plugForm, proizvodjac: e.target.value })}
+                placeholder="Shelly"
+              />
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="model">Model</label>
+              <input
+                type="text"
+                id="model"
+                value={plugForm.model}
+                onChange={(e) => setPlugForm({ ...plugForm, model: e.target.value })}
+                placeholder="Plug S Gen3"
+              />
+            </div>
+          </div>
+
+          <div className="info-box">
+            <strong>💡 Dostupne utičnice:</strong>
+            <ul>
+              <li>Uređaji srednje potrošnje: 192.168.1.71</li>
+              <li>Uređaji visoke potrošnje: 192.168.1.244</li>
+              <li>Uređaji niske potrošnje: 192.168.1.166</li>
+            </ul>
+          </div>
+
+          <div className="form-actions">
+            <button type="button" className="btn-secondary" onClick={() => setIsPlugModalOpen(false)}>
+              Odustani
+            </button>
+            <button type="submit" className="btn-primary">
+              {selectedDevice?.pametni_utikac ? 'Spremi promjene' : 'Dodaj utičnicu'}
             </button>
           </div>
         </form>

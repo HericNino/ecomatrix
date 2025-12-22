@@ -185,11 +185,14 @@ export async function getDailyCosts(korisnikId, kucanstvoId, danaUnazad = 30) {
     [kucanstvoId, datumOd]
   );
 
-  const dailyCosts = dailyData.map(day => ({
-    datum: day.datum,
-    potrosnja_kwh: parseFloat((day.potrosnja_kwh || 0).toFixed(2)),
-    troskovi: parseFloat(((day.potrosnja_kwh || 0) * priceInfo.cijena_kwh).toFixed(2)),
-  }));
+  const dailyCosts = dailyData.map(day => {
+    const potrosnja = parseFloat(day.potrosnja_kwh) || 0;
+    return {
+      datum: day.datum,
+      potrosnja_kwh: parseFloat(potrosnja.toFixed(2)),
+      troskovi: parseFloat((potrosnja * priceInfo.cijena_kwh).toFixed(2)),
+    };
+  });
 
   return {
     cijena_kwh: priceInfo.cijena_kwh,

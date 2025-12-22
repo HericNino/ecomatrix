@@ -394,14 +394,49 @@
 }
 
 /* Responsive */
+@media (max-width: 1024px) {
+  .recommendations-grid {
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  }
+}
+
 @media (max-width: 768px) {
   .insights-page {
     padding: 16px;
   }
 
+  .page-header h1 {
+    font-size: 24px;
+  }
+
+  .page-header p {
+    font-size: 13px;
+  }
+
+  .insights-controls {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .control-select {
+    min-width: unset;
+    width: 100%;
+  }
+
+  .comparison-section h2,
+  .recommendations-section h2,
+  .patterns-section > h2 {
+    font-size: 18px;
+  }
+
   .comparison-card {
     flex-direction: column;
     align-items: flex-start;
+    padding: 20px;
+  }
+
+  .comparison-value {
+    font-size: 24px;
   }
 
   .comparison-change {
@@ -409,8 +444,16 @@
     width: 100%;
   }
 
+  .change-badge {
+    font-size: 18px;
+  }
+
   .recommendations-grid {
     grid-template-columns: 1fr;
+  }
+
+  .pattern-card {
+    padding: 20px;
   }
 
   .peak-item {
@@ -420,5 +463,75 @@
   .peak-bar-container {
     width: 100%;
     order: 3;
+  }
+}
+
+@media (max-width: 480px) {
+  .page-header h1 {
+    font-size: 20px;
+  }
+
+  .insights-page {
+    padding: 12px;
+  }
+
+  .comparison-section h2,
+  .recommendations-section h2,
+  .patterns-section > h2 {
+    font-size: 16px;
+  }
+
+  .comparison-card {
+    padding: 16px;
+    gap: 16px;
+  }
+
+  .comparison-value {
+    font-size: 20px;
+  }
+
+  .comparison-arrow {
+    font-size: 24px;
+  }
+
+  .change-badge {
+    font-size: 16px;
+  }
+
+  .recommendation-card {
+    padding: 16px;
+  }
+
+  .recommendation-card h3 {
+    font-size: 15px;
+  }
+
+  .recommendation-card p {
+    font-size: 13px;
+  }
+
+  .pattern-card {
+    padding: 16px;
+  }
+
+  .pattern-card h3 {
+    font-size: 15px;
+  }
+
+  .consumer-item {
+    padding: 10px;
+  }
+
+  .consumer-rank {
+    font-size: 16px;
+    min-width: 32px;
+  }
+
+  .consumer-name {
+    font-size: 13px;
+  }
+
+  .consumer-value {
+    font-size: 14px;
   }
 }

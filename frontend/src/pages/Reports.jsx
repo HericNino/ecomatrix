@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   LineChart,
   Line,
@@ -14,6 +14,8 @@ import {
   Legend,
   ResponsiveContainer
 } from 'recharts';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import toast from 'react-hot-toast';
 import householdsService from '../services/households.service';
 import reportsService from '../services/reports.service';
@@ -22,6 +24,7 @@ import './Reports.css';
 const COLORS = ['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#84cc16'];
 
 const Reports = () => {
+  const reportRef = useRef(null);
   const [households, setHouseholds] = useState([]);
   const [selectedHousehold, setSelectedHousehold] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -148,9 +151,194 @@ const Reports = () => {
     loadComparison();
   };
 
-  const exportToPDF = () => {
-    // TODO: Implementiraj PDF export
-    toast('PDF export dolazi uskoro...', { icon: '📄' });
+  const exportToPDF = async () => {
+    if (!reportData) {
+      toast.error('Nema podataka za export');
+      return;
+    }
+
+    try {
+      toast.loading('Generiranje PDF-a...', { id: 'pdf-export' });
+
+      const selectedHouseholdName = households.find(h => h.id_kucanstvo === selectedHousehold)?.naziv || 'Kućanstvo';
+
+      // Kreiraj novi PDF dokument
+      const doc = new jsPDF();
+
+      // Vite/ESM compatibility fix: Manually add autoTable if not auto-attached
+      // jspdf-autotable v5+ doesn't auto-extend in Vite builds
+      if (!doc.autoTable) {
+        // Attach autoTable function to this doc instance
+        doc.autoTable = function(options) {
+          return autoTable(this, options);
+        };
+      }
+
+      const pageWidth = doc.internal.pageSize.getWidth();
+      let yPos = 20;
+
+      // Header
+      doc.setFontSize(18);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Izvještaj Potrošnje Energije', pageWidth / 2, yPos, { align: 'center' });
+
+      yPos += 10;
+      doc.setFontSize(12);
+      doc.setFont('helvetica', 'normal');
+      doc.text(selectedHouseholdName, pageWidth / 2, yPos, { align: 'center' });
+
+      yPos += 6;
+      doc.setFontSize(10);
+      doc.text(`Razdoblje: ${filters.datumOd} do ${filters.datumDo}`, pageWidth / 2, yPos, { align: 'center' });
+      doc.text(`Generirano: ${new Date().toLocaleDateString('hr-HR')}`, pageWidth / 2, yPos + 5, { align: 'center' });
+
+      yPos += 15;
+
+      // Sažetak
+      doc.setFontSize(14);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Sažetak', 14, yPos);
+      yPos += 8;
+
+      doc.autoTable({
+        startY: yPos,
+        head: [['Metrika', 'Vrijednost']],
+        body: [
+          ['Ukupna potrošnja', `${reportData.summary.ukupna_potrosnja_kwh} kWh`],
+          ['Prosječna dnevna', `${reportData.summary.prosjecna_dnevna_kwh} kWh`],
+          ['Broj uređaja', reportData.summary.broj_uredjaja],
+          ['Broj dana', reportData.summary.broj_dana],
+        ],
+        theme: 'grid',
+        headStyles: { fillColor: [16, 185, 129], textColor: 255, fontStyle: 'bold' },
+        margin: { left: 14, right: 14 },
+        styles: { fontSize: 10 },
+      });
+
+      yPos = doc.lastAutoTable.finalY + 10;
+
+      // Top 10 potrošača
+      doc.setFontSize(14);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Top 10 Potrošača', 14, yPos);
+      yPos += 6;
+
+      const topDevicesData = reportData.topDevices.slice(0, 10).map((device, idx) => [
+        idx + 1,
+        device.naziv,
+        device.tip_uredjaja,
+        device.prostorija,
+        `${device.potrosnja_kwh} kWh`,
+      ]);
+
+      doc.autoTable({
+        startY: yPos,
+        head: [['#', 'Uređaj', 'Tip', 'Prostorija', 'Potrošnja']],
+        body: topDevicesData,
+        theme: 'striped',
+        headStyles: { fillColor: [16, 185, 129], textColor: 255, fontStyle: 'bold' },
+        margin: { left: 14, right: 14 },
+        styles: { fontSize: 9 },
+        columnStyles: {
+          0: { cellWidth: 10 },
+          4: { halign: 'right' },
+        },
+      });
+
+      yPos = doc.lastAutoTable.finalY + 10;
+
+      // Provjeri da li treba nova stranica
+      if (yPos > 250) {
+        doc.addPage();
+        yPos = 20;
+      }
+
+      // Potrošnja po prostorijama
+      doc.setFontSize(14);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Potrošnja po Prostorijama', 14, yPos);
+      yPos += 6;
+
+      const roomData = reportData.byRoom.map((room) => [
+        room.prostorija,
+        room.tip_prostorije || 'N/A',
+        `${room.potrosnja_kwh} kWh`,
+      ]);
+
+      doc.autoTable({
+        startY: yPos,
+        head: [['Prostorija', 'Tip', 'Potrošnja']],
+        body: roomData,
+        theme: 'grid',
+        headStyles: { fillColor: [16, 185, 129], textColor: 255, fontStyle: 'bold' },
+        margin: { left: 14, right: 14 },
+        styles: { fontSize: 10 },
+        columnStyles: {
+          2: { halign: 'right' },
+        },
+      });
+
+      yPos = doc.lastAutoTable.finalY + 10;
+
+      // Provjeri da li treba nova stranica
+      if (yPos > 250) {
+        doc.addPage();
+        yPos = 20;
+      }
+
+      // Potrošnja po tipu uređaja
+      doc.setFontSize(14);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Potrošnja po Tipu Uređaja', 14, yPos);
+      yPos += 6;
+
+      const typeData = reportData.byDeviceType.map((type) => [
+        type.tip_uredjaja,
+        type.broj_uredjaja,
+        `${type.potrosnja_kwh} kWh`,
+      ]);
+
+      doc.autoTable({
+        startY: yPos,
+        head: [['Tip Uređaja', 'Broj Uređaja', 'Potrošnja']],
+        body: typeData,
+        theme: 'grid',
+        headStyles: { fillColor: [16, 185, 129], textColor: 255, fontStyle: 'bold' },
+        margin: { left: 14, right: 14 },
+        styles: { fontSize: 10 },
+        columnStyles: {
+          1: { halign: 'center' },
+          2: { halign: 'right' },
+        },
+      });
+
+      // Footer na svakoj stranici
+      const pageCount = doc.internal.getNumberOfPages();
+      for (let i = 1; i <= pageCount; i++) {
+        doc.setPage(i);
+        doc.setFontSize(8);
+        doc.setTextColor(128);
+        doc.text(
+          `Stranica ${i} od ${pageCount}`,
+          pageWidth / 2,
+          doc.internal.pageSize.getHeight() - 10,
+          { align: 'center' }
+        );
+        doc.text(
+          'EcoMatrix - Sustav za praćenje potrošnje energije',
+          pageWidth / 2,
+          doc.internal.pageSize.getHeight() - 6,
+          { align: 'center' }
+        );
+      }
+
+      // Spremi PDF
+      doc.save(`izvjestaj_${selectedHouseholdName}_${filters.datumOd}_${filters.datumDo}.pdf`);
+      toast.success('PDF uspješno exportan!', { id: 'pdf-export' });
+    } catch (error) {
+      console.error('PDF export error:', error);
+      toast.error('Greška pri exportu PDF-a', { id: 'pdf-export' });
+    }
   };
 
   const exportToExcel = () => {
@@ -278,7 +466,7 @@ const Reports = () => {
 
           {/* Report Data */}
           {reportData && (
-            <div className="report-content">
+            <div className="report-content" ref={reportRef}>
               {/* Summary Cards */}
               <div className="summary-grid">
                 <div className="summary-card">

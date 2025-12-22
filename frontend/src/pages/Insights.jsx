@@ -46,7 +46,7 @@ const Insights = () => {
       setLoading(true);
       const [patternsData, recommendationsData, comparisonData] = await Promise.all([
         insightsService.getPatterns(selectedHousehold, period),
-        insightsService.getRecommendations(selectedHousehold),
+        insightsService.getMLRecommendations(selectedHousehold, period), // Koristi ML preporuke
         insightsService.getComparison(selectedHousehold, period),
       ]);
 

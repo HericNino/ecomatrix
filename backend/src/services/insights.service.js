@@ -325,8 +325,8 @@ export async function compareWithPreviousPeriod(korisnikId, kucanstvoId, danaUna
     [kucanstvoId, previousStart, previousEnd]
   );
 
-  const currentTotal = currentData.reduce((sum, d) => sum + (d.consumption || 0), 0);
-  const previousTotal = previousData.reduce((sum, d) => sum + (d.consumption || 0), 0);
+  const currentTotal = currentData.reduce((sum, d) => sum + (parseFloat(d.consumption) || 0), 0);
+  const previousTotal = previousData.reduce((sum, d) => sum + (parseFloat(d.consumption) || 0), 0);
 
   let percentage = 0;
   let trend = 'stabilno';

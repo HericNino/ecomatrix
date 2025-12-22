@@ -15,5 +15,8 @@ insightsRouter.get('/households/:id/patterns', ctrl.getConsumptionPatterns);
 // Generiranje preporuka za kućanstvo
 insightsRouter.get('/households/:id/recommendations', ctrl.getRecommendations);
 
+// ML-bazirane preporuke (napredno)
+insightsRouter.get('/households/:id/ml-recommendations', ctrl.getMLRecommendations);
+
 // Usporedba s prošlim razdobljem
 insightsRouter.get('/households/:id/comparison', ctrl.getComparison);
