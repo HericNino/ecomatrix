@@ -26,3 +26,6 @@ devicesRouter.delete('/devices/:deviceId', ctrl.deleteDevice);
 devicesRouter.get('/devices/:deviceId/plug', ctrl.getPlugForDevice);
 devicesRouter.post('/devices/:deviceId/plug', ctrl.attachPlugToDevice);
 devicesRouter.put('/devices/:deviceId/plug', ctrl.updatePlugForDevice);
+
+// Manually collect data for a device
+devicesRouter.post('/devices/:deviceId/collect', ctrl.collectDataForDevice);

@@ -195,3 +195,23 @@ export async function deleteDevice(req, res, next) {
     next(error);
   }
 }
+
+/**
+ * Manually trigger data collection for a specific device
+ */
+export async function collectDataForDevice(req, res, next) {
+  try {
+    const korisnikId = req.user.id;
+    const uredjajId = Number(req.params.deviceId);
+
+    const result = await svc.collectDataForDevice(korisnikId, uredjajId);
+
+    res.json({
+      success: true,
+      message: 'Podaci uspješno prikupljeni',
+      data: result
+    });
+  } catch (error) {
+    next(error);
+  }
+}

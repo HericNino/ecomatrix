@@ -19,6 +19,11 @@ export function detectAnomalies(consumptionData, threshold = 2.5) {
   const mean = stats.mean(values);
   const stdDev = stats.standardDeviation(values);
 
+  // Guard against zero or near-zero standard deviation (uniform data)
+  if (stdDev < 0.01) {
+    return []; // No anomalies in uniform data
+  }
+
   const anomalies = [];
   consumptionData.forEach((data, idx) => {
     const zScore = Math.abs((data.potrosnja_kwh - mean) / stdDev);
@@ -78,14 +83,19 @@ export function predictFutureConsumption(historicalData, daysAhead = 7) {
  * Izračunava confidence za prediction model
  */
 function calculateConfidence(actualData, predictionLine) {
-  // Prepare data as [x, y] pairs for rSquared calculation
-  const dataPoints = actualData.map((d, idx) => [idx, d.potrosnja_kwh]);
+  try {
+    // Prepare data as [x, y] pairs for rSquared calculation
+    const dataPoints = actualData.map((d, idx) => [idx, d.potrosnja_kwh]);
 
-  const rSquared = stats.rSquared(dataPoints, predictionLine);
+    const rSquared = stats.rSquared(dataPoints, predictionLine);
 
-  if (rSquared > 0.8) return 'high';
-  if (rSquared > 0.6) return 'medium';
-  return 'low';
+    if (rSquared > 0.8) return 'high';
+    if (rSquared > 0.6) return 'medium';
+    return 'low';
+  } catch (error) {
+    // If rSquared calculation fails (degenerate regression, etc.), default to low confidence
+    return 'low';
+  }
 }
 
 /**
@@ -357,7 +367,10 @@ export async function generateMLRecommendations(korisnikId, kucanstvoId, danaUna
         tip: d.tip_uredjaja,
         total_consumption: parseFloat(d.total_consumption || 0),
         avg_power: parseFloat(d.avg_power || 0),
-        uptime_percentage: (parseFloat(d.measurement_count) / (danaUnazad * 24 * 12)) * 100 // assuming 5min intervals
+        // NOTE: Uptime calculation assumes 5-minute collection intervals (12 per hour)
+        // This matches the scheduler.service.js cron pattern: */5 * * * *
+        // If collection frequency changes, update this calculation
+        uptime_percentage: (parseFloat(d.measurement_count) / (danaUnazad * 24 * 12)) * 100
       }));
 
       const clusters = clusterDevicesByUsage(deviceData);

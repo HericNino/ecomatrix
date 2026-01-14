@@ -9,6 +9,7 @@ import { insightsRouter } from './routes/insights.routes.js';
 import { costsRouter } from './routes/costs.routes.js';
 import { goalsRouter } from './routes/goals.routes.js';
 import { reportsRouter } from './routes/reports.routes.js';
+import { notificationRouter } from './routes/notification.routes.js';
 import { authRequired } from './middleware/auth.middleware.js';
 
 
@@ -33,6 +34,7 @@ export function createApp()
     app.use('/api', authRequired, costsRouter);
     app.use('/api', authRequired, goalsRouter);
     app.use('/api', authRequired, reportsRouter);
+    app.use('/api/notifications', authRequired, notificationRouter);
 
     //Error handler
     app.use(errorHandler);

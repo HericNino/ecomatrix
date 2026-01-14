@@ -185,7 +185,7 @@ const Insights = () => {
           )}
 
           {/* Recommendations */}
-          {recommendations.length > 0 && (
+          {recommendations.length > 0 ? (
             <div className="recommendations-section">
               <h2>Personalizirane preporuke</h2>
               <div className="recommendations-grid">
@@ -207,6 +207,14 @@ const Insights = () => {
                   </div>
                 ))}
               </div>
+            </div>
+          ) : !loading && (
+            <div className="no-data">
+              <h3>💡 Nema posebnih preporuka</h3>
+              <p>
+                Za odabrano razdoblje nema specifičnih preporuka. Nastavite prikupljati podatke o potrošnji
+                kako bi sustav mogao identificirati mogućnosti za uštedu energije.
+              </p>
             </div>
           )}
 
@@ -254,7 +262,7 @@ const Insights = () => {
                         formatter={(value) => [`${value.toFixed(2)} kWh`, 'Potrošnja']}
                       />
                       <Legend />
-                      <Bar dataKey="consumption" fill="#10b981" name="Potrošnja (kWh)" radius={[6, 6, 0, 0]} />
+                      <Bar dataKey="consumption" fill="#2563eb" name="Potrošnja (kWh)" radius={[6, 6, 0, 0]} />
                     </BarChart>
                   </ResponsiveContainer>
                 </div>

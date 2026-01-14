@@ -10,6 +10,7 @@ import { getDb } from '../config/db.js';
 import * as shellyService from './shelly.service.js';
 import * as measurementsService from './measurements.service.js';
 import * as logger from './logger.service.js';
+import * as notificationService from './notification.service.js';
 
 let collectionJob = null;
 let collectionStats = {
@@ -28,7 +29,7 @@ async function collectDataFromAllActiveDevices() {
   const startTime = Date.now();
 
   try {
-    // Dohvati sve aktivne uređaje sa pametnim utičnicama koje imaju IP adresu
+    // Dohvati sve aktivne uređaje i uređaje s kvarom (pokušaj ih reconnect-ati)
     const [devices] = await db.query(
       `SELECT
         u.uredjaj_id,
@@ -38,12 +39,13 @@ async function collectDataFromAllActiveDevices() {
         pu.serijski_broj,
         pu.status,
         k.kucanstvo_id,
-        k.naziv AS kucanstvo_naziv
+        k.naziv AS kucanstvo_naziv,
+        k.korisnik_id
       FROM uredjaj u
       JOIN pametni_utikac pu ON u.uredjaj_id = pu.uredjaj_id
       JOIN prostorija p ON u.prostorija_id = p.prostorija_id
       JOIN kucanstvo k ON p.kucanstvo_id = k.kucanstvo_id
-      WHERE pu.status = 'aktivan' AND pu.ip_adresa IS NOT NULL`
+      WHERE pu.status IN ('aktivan', 'kvar') AND pu.ip_adresa IS NOT NULL`
     );
 
     if (devices.length === 0) {
@@ -71,6 +73,31 @@ async function collectDataFromAllActiveDevices() {
           energyData.timestamp,
           'automatsko'
         );
+
+        // Ako je uređaj bio označen kao kvar, vrati ga na aktivan
+        if (device.status === 'kvar') {
+          await db.query(
+            `UPDATE pametni_utikac SET status = 'aktivan' WHERE utikac_id = ?`,
+            [device.utikac_id]
+          );
+          logger.logInfo(`Device status restored to active after successful collection`, {
+            deviceId: device.uredjaj_id,
+            deviceName: device.uredjaj_naziv
+          });
+        }
+
+        // Check for high power consumption (over 3000W = 3kW is considered high)
+        const HIGH_POWER_THRESHOLD = 3000; // Watts
+        if (energyData.currentPower > HIGH_POWER_THRESHOLD) {
+          notificationService.notifyHighConsumption(
+            device.korisnik_id,
+            device.kucanstvo_id,
+            device.uredjaj_id,
+            device.uredjaj_naziv,
+            energyData.currentPower,
+            HIGH_POWER_THRESHOLD
+          ).catch(err => logger.logError('Failed to create high consumption notification', err));
+        }
 
         successCount++;
         logger.logDataCollectionSuccess(
@@ -115,6 +142,15 @@ async function collectDataFromAllActiveDevices() {
               deviceName: device.uredjaj_naziv,
               failCount: failCount[0].fails
             });
+
+            // Create device failure notification
+            notificationService.notifyDeviceFailure(
+              device.korisnik_id,
+              device.kucanstvo_id,
+              device.uredjaj_id,
+              device.uredjaj_naziv,
+              `Uređaj je označen kao neispravan nakon ${failCount[0].fails} uzastopnih neuspjelih pokušaja prikupljanja podataka.`
+            ).catch(err => logger.logError('Failed to create device failure notification', err));
           } else {
             // Spremi nevalidno mjerenje za tracking
             await db.query(

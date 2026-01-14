@@ -26,13 +26,11 @@ const Register = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // Provjeri da se lozinke podudaraju
     if (formData.lozinka !== formData.ponovi_lozinku) {
       toast.error('Lozinke nisu iste');
       return;
     }
 
-    // Minimalna duzina lozinke
     if (formData.lozinka.length < 6) {
       toast.error('Lozinka treba biti duza od 6 znakova');
       return;
@@ -53,17 +51,17 @@ const Register = () => {
 
   return (
     <div className="auth-container">
-      <div className="auth-box">
+      <div className="auth-card">
         <div className="auth-header">
-          <div className="logo">⚡</div>
-          <h1>EcoMetrix</h1>
-          <p>Kreirajte svoj račun</p>
+          <h1 className="auth-brand">EcoMetrix</h1>
+          <h2 className="auth-title">Kreiraj nalog</h2>
+          <p className="auth-subtitle">Započnite praćenje potrošnje energije</p>
         </div>
 
         <form onSubmit={handleSubmit} className="auth-form">
           <div className="form-row">
             <div className="form-group">
-              <label htmlFor="ime">Ime</label>
+              <label htmlFor="ime" className="form-label">Ime</label>
               <input
                 type="text"
                 id="ime"
@@ -73,11 +71,12 @@ const Register = () => {
                 required
                 placeholder="Ime"
                 autoComplete="given-name"
+                className="form-input"
               />
             </div>
 
             <div className="form-group">
-              <label htmlFor="prezime">Prezime</label>
+              <label htmlFor="prezime" className="form-label">Prezime</label>
               <input
                 type="text"
                 id="prezime"
@@ -87,12 +86,13 @@ const Register = () => {
                 required
                 placeholder="Prezime"
                 autoComplete="family-name"
+                className="form-input"
               />
             </div>
           </div>
 
           <div className="form-group">
-            <label htmlFor="email">Email adresa</label>
+            <label htmlFor="email" className="form-label">Email</label>
             <input
               type="email"
               id="email"
@@ -100,13 +100,14 @@ const Register = () => {
               value={formData.email}
               onChange={handleChange}
               required
-              placeholder="korisnik@primjer.com"
+              placeholder="ime@firma.com"
               autoComplete="email"
+              className="form-input"
             />
           </div>
 
           <div className="form-group">
-            <label htmlFor="lozinka">Lozinka</label>
+            <label htmlFor="lozinka" className="form-label">Lozinka</label>
             <input
               type="password"
               id="lozinka"
@@ -117,11 +118,12 @@ const Register = () => {
               placeholder="Minimum 6 znakova"
               minLength={6}
               autoComplete="new-password"
+              className="form-input"
             />
           </div>
 
           <div className="form-group">
-            <label htmlFor="ponovi_lozinku">Potvrdite lozinku</label>
+            <label htmlFor="ponovi_lozinku" className="form-label">Potvrdi lozinku</label>
             <input
               type="password"
               id="ponovi_lozinku"
@@ -132,17 +134,18 @@ const Register = () => {
               placeholder="Ponovite lozinku"
               minLength={6}
               autoComplete="new-password"
+              className="form-input"
             />
           </div>
 
-          <button type="submit" className="btn-primary" disabled={loading}>
-            {loading ? 'Kreiranje računa...' : 'Kreiraj račun'}
+          <button type="submit" className="btn btn-primary btn-full" disabled={loading}>
+            {loading ? 'Kreiranje naloga...' : 'Kreiraj nalog'}
           </button>
-
-          <p className="auth-footer">
-            Već imate račun? <Link to="/login">Prijavite se</Link>
-          </p>
         </form>
+
+        <div className="auth-footer">
+          Već imate nalog? <Link to="/login" className="auth-link">Prijavite se</Link>
+        </div>
       </div>
     </div>
   );

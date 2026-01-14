@@ -28,8 +28,9 @@ export const ErrorType = {
 
 /**
  * Klasifikuje grešku u odgovarajući tip
+ * Exported for testing
  */
-function classifyError(error) {
+export function classifyError(error) {
   if (error.name === 'AbortError') {
     return ErrorType.TIMEOUT;
   }

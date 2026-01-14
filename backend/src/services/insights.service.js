@@ -1,4 +1,5 @@
 import { getDb } from "../config/db.js";
+import * as notificationService from './notification.service.js';
 
 /**
  * Analizira obrasce potrošnje za kućanstvo
@@ -151,10 +152,11 @@ export async function analyzeConsumptionPatterns(korisnikId, kucanstvoId, danaUn
       total: parseFloat(d.total.toFixed(2)),
     }));
 
-  // Neobični skokovi (3x iznad prosjeka)
+  // Neobični skokovi (3x iznad prosjeka, ali minimalno 0.1 kWh da izbjegnemo noise)
   const avgConsumption = consumptionData.reduce((sum, c) => sum + c.potrosnja_kwh, 0) / consumptionData.length;
+  const spikeThreshold = Math.max(avgConsumption * 3, 0.1); // Absolute minimum of 0.1 kWh
   const unusualSpikes = consumptionData
-    .filter(c => c.potrosnja_kwh > avgConsumption * 3)
+    .filter(c => c.potrosnja_kwh > spikeThreshold)
     .map(c => ({
       uredjaj_naziv: c.uredjaj_naziv,
       datum_vrijeme: c.datum_vrijeme,
@@ -164,12 +166,30 @@ export async function analyzeConsumptionPatterns(korisnikId, kucanstvoId, danaUn
 
   // Summary statistika
   const totalConsumption = consumptionData.reduce((sum, c) => sum + c.potrosnja_kwh, 0);
+  // Guard against division by zero or negative days
+  const safeDays = Math.max(danaUnazad, 1);
   const summary = {
     totalConsumption: parseFloat(totalConsumption.toFixed(2)),
-    averageDaily: parseFloat((totalConsumption / danaUnazad).toFixed(2)),
+    averageDaily: parseFloat((totalConsumption / safeDays).toFixed(2)),
     measurementCount: consumptionData.length,
     deviceCount: Object.keys(deviceConsumption).length,
   };
+
+  // Create anomaly notification if unusual spikes detected
+  if (unusualSpikes.length > 0) {
+    const anomalyData = {
+      spikesCount: unusualSpikes.length,
+      topSpike: unusualSpikes[0],
+      avgConsumption: parseFloat(avgConsumption.toFixed(2)),
+      threshold: parseFloat(spikeThreshold.toFixed(2)),
+    };
+
+    notificationService.notifyAnomaly(
+      korisnikId,
+      kucanstvoId,
+      anomalyData
+    ).catch(err => console.error('Failed to create anomaly notification:', err));
+  }
 
   return {
     peakHours,

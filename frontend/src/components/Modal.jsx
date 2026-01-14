@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { HiOutlineX } from 'react-icons/hi';
 import './Modal.css';
 
 const Modal = ({ isOpen, onClose, title, children }) => {
@@ -26,9 +27,9 @@ const Modal = ({ isOpen, onClose, title, children }) => {
     <div className="modal-backdrop" onClick={handleBackdropClick}>
       <div className="modal-content">
         <div className="modal-header">
-          <h2>{title}</h2>
-          <button className="modal-close" onClick={onClose}>
-            ✕
+          <h3 className="modal-title">{title}</h3>
+          <button className="modal-close" onClick={onClose} aria-label="Zatvori">
+            <HiOutlineX size={20} />
           </button>
         </div>
         <div className="modal-body">{children}</div>

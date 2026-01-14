@@ -21,7 +21,7 @@ import householdsService from '../services/households.service';
 import reportsService from '../services/reports.service';
 import './Reports.css';
 
-const COLORS = ['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#84cc16'];
+const COLORS = ['#2563eb', '#3b82f6', '#60a5fa', '#93c5fd', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
 
 const Reports = () => {
   const reportRef = useRef(null);
@@ -210,7 +210,7 @@ const Reports = () => {
           ['Broj dana', reportData.summary.broj_dana],
         ],
         theme: 'grid',
-        headStyles: { fillColor: [16, 185, 129], textColor: 255, fontStyle: 'bold' },
+        headStyles: { fillColor: [37, 99, 235], textColor: 255, fontStyle: 'bold' },
         margin: { left: 14, right: 14 },
         styles: { fontSize: 10 },
       });
@@ -236,7 +236,7 @@ const Reports = () => {
         head: [['#', 'Uređaj', 'Tip', 'Prostorija', 'Potrošnja']],
         body: topDevicesData,
         theme: 'striped',
-        headStyles: { fillColor: [16, 185, 129], textColor: 255, fontStyle: 'bold' },
+        headStyles: { fillColor: [37, 99, 235], textColor: 255, fontStyle: 'bold' },
         margin: { left: 14, right: 14 },
         styles: { fontSize: 9 },
         columnStyles: {
@@ -270,7 +270,7 @@ const Reports = () => {
         head: [['Prostorija', 'Tip', 'Potrošnja']],
         body: roomData,
         theme: 'grid',
-        headStyles: { fillColor: [16, 185, 129], textColor: 255, fontStyle: 'bold' },
+        headStyles: { fillColor: [37, 99, 235], textColor: 255, fontStyle: 'bold' },
         margin: { left: 14, right: 14 },
         styles: { fontSize: 10 },
         columnStyles: {
@@ -303,7 +303,7 @@ const Reports = () => {
         head: [['Tip Uređaja', 'Broj Uređaja', 'Potrošnja']],
         body: typeData,
         theme: 'grid',
-        headStyles: { fillColor: [16, 185, 129], textColor: 255, fontStyle: 'bold' },
+        headStyles: { fillColor: [37, 99, 235], textColor: 255, fontStyle: 'bold' },
         margin: { left: 14, right: 14 },
         styles: { fontSize: 10 },
         columnStyles: {
@@ -520,9 +520,9 @@ const Reports = () => {
                       <Line
                         type="monotone"
                         dataKey="potrosnja_kwh"
-                        stroke="#10b981"
+                        stroke="#2563eb"
                         strokeWidth={3}
-                        dot={{ fill: '#10b981', r: 4 }}
+                        dot={{ fill: '#2563eb', r: 4 }}
                         name="Potrošnja (kWh)"
                       />
                     </LineChart>

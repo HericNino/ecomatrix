@@ -1,4 +1,6 @@
 import { getDb } from "../config/db.js";
+import * as shellyService from './shelly.service.js';
+import * as notificationService from './notification.service.js';
 
 const DOZVOLJENI_TIPOVI_UREDJAJA = [
     'hladnjak',
@@ -431,4 +433,78 @@ export async function deleteDevice(korisnikId, uredjajId) {
   await db.query('DELETE FROM uredjaj WHERE uredjaj_id = ?', [uredjajId]);
 
   return { success: true };
+}
+
+/**
+ * Manually collect data for a specific device
+ */
+export async function collectDataForDevice(korisnikId, uredjajId) {
+  const db = getDb();
+  await assertDeviceOwnership(db, korisnikId, uredjajId);
+
+  // Get device with plug info and household info
+  const [devices] = await db.query(
+    `SELECT u.*, p.*, k.kucanstvo_id
+     FROM uredjaj u
+     JOIN pametni_utikac p ON u.uredjaj_id = p.uredjaj_id
+     JOIN prostorija pr ON u.prostorija_id = pr.prostorija_id
+     JOIN kucanstvo k ON pr.kucanstvo_id = k.kucanstvo_id
+     WHERE u.uredjaj_id = ?`,
+    [uredjajId]
+  );
+
+  if (devices.length === 0) {
+    throw new Error('Uređaj nema povezanu pametnu utičnicu');
+  }
+
+  const device = devices[0];
+
+  try {
+    // Collect data using Shelly service
+    const consumptionData = await shellyService.getCurrentEnergyConsumption(device.ip_adresa);
+
+    // Store measurement
+    await db.query(
+      `INSERT INTO mjerenje (uredjaj_id, vrijednost_kwh, datum_vrijeme, validno)
+       VALUES (?, ?, ?, 1)`,
+      [uredjajId, consumptionData.energyKwh, consumptionData.timestamp]
+    );
+
+    // Check for high power consumption (over 3000W = 3kW is considered high)
+    const HIGH_POWER_THRESHOLD = 3000; // Watts
+    if (consumptionData.currentPower > HIGH_POWER_THRESHOLD) {
+      await notificationService.notifyHighConsumption(
+        korisnikId,
+        device.kucanstvo_id,
+        uredjajId,
+        device.naziv,
+        consumptionData.currentPower,
+        HIGH_POWER_THRESHOLD
+      ).catch(err => console.error('Failed to create high consumption notification:', err));
+    }
+
+    return {
+      deviceId: uredjajId,
+      deviceName: device.naziv,
+      energyKwh: consumptionData.energyKwh,
+      currentPower: consumptionData.currentPower,
+      voltage: consumptionData.voltage,
+      current: consumptionData.current,
+      isOn: consumptionData.isOn,
+      temperature: consumptionData.temperature,
+      timestamp: consumptionData.timestamp
+    };
+  } catch (error) {
+    // Create device failure notification
+    await notificationService.notifyDeviceFailure(
+      korisnikId,
+      device.kucanstvo_id,
+      uredjajId,
+      device.naziv,
+      error.message
+    ).catch(err => console.error('Failed to create device failure notification:', err));
+
+    // Re-throw the original error
+    throw error;
+  }
 }
