@@ -1,137 +1,64 @@
 # EcoMetrix Frontend
 
-React frontend aplikacija za EcoMetrix - sustav za praćenje i optimizaciju potrošnje energije u kućanstvu.
+React aplikacija za EcoMetrix — prati i vizualizira potrošnju energije po kućanstvima, uređajima i prostorijama.
 
-Izgrađen sa **React + Vite**, **React Router**, **Axios** i **Recharts**.
+## Tech stack
 
-## Tehnologije
-
-- **React 18** - UI biblioteka
-- **Vite** - Build tool i dev server
-- **React Router v6** - Client-side routing
-- **Axios** - HTTP client za API pozive
-- **Recharts** - Grafikoni i vizualizacija podataka
-- **date-fns** - Formatiranje datuma
+React 19 · Vite · React Router v7 · Axios · Recharts · react-hot-toast · react-icons · date-fns · jsPDF
 
 ## Preduvjeti
 
-- Node.js 18+ i npm
-- EcoMetrix backend pokrenut na `http://localhost:4000`
+- Node.js 18+
+- Backend pokrenut na `http://localhost:4000`
 
-## Instalacija
+## Setup
 
 ```bash
 npm install
-```
-
-## Pokretanje
-
-**Development server:**
-```bash
 npm run dev
 ```
 
-Aplikacija će biti dostupna na `http://localhost:5173/`
+Otvori `http://localhost:5173/`
 
-**Production build:**
+Za production build:
 ```bash
 npm run build
 npm run preview
 ```
 
-## Struktura projekta
+## Struktura
 
 ```
-frontend/
-├── src/
-│   ├── components/         # Reusable komponente
-│   │   ├── DashboardLayout.jsx
-│   │   └── ProtectedRoute.jsx
-│   ├── pages/             # Stranice aplikacije
-│   │   ├── Login.jsx
-│   │   ├── Register.jsx
-│   │   ├── Dashboard.jsx
-│   │   ├── Households.jsx
-│   │   ├── Devices.jsx
-│   │   ├── Reports.jsx
-│   │   └── Settings.jsx
-│   ├── services/          # API servisi
-│   │   ├── api.js
-│   │   ├── auth.service.js
-│   │   ├── households.service.js
-│   │   └── devices.service.js
-│   ├── context/           # React Context
-│   │   └── AuthContext.jsx
-│   ├── hooks/             # Custom hooks
-│   ├── utils/             # Helper funkcije
-│   ├── App.jsx            # Root component s routing-om
-│   └── main.jsx           # Entry point
-├── package.json
-└── vite.config.js
+src/
+├── pages/           # Login, Register, Dashboard, Households, Devices, Reports, Settings
+├── components/      # DashboardLayout, ProtectedRoute, ostale reusable komponente
+├── services/        # API pozivi (auth, households, devices) — koriste centralnu Axios instancu
+├── context/         # AuthContext za JWT auth state
+├── hooks/           # Custom React hookovi
+├── utils/           # Helperi
+├── App.jsx          # Routing
+└── main.jsx         # Entry point
 ```
 
-## Funkcionalnosti
+## Kako radi
 
-### Implementirano
+Frontend komunicira s backendom na `http://localhost:4000/api`. JWT token se automatski šalje u svakom requestu kroz Axios interceptor.
 
-- ✅ Autentifikacija (Login/Register)
-- ✅ JWT token upravljanje
-- ✅ Protected routes
-- ✅ Dashboard layout s navigacijom
-- ✅ Početni dashboard
-- ✅ API integracija s backendom
-
-### U izradi
-
-- 🔄 Upravljanje kućanstvima
-- 🔄 Upravljanje uređajima
-- 🔄 Grafikoni potrošnje
-- 🔄 Izvještaji i statistika
-- 🔄 Real-time prikaz podataka
-- 🔄 Preporuke za optimizaciju
-
-## API Endpoint-i
-
-Frontend komunicira s backendom preko REST API-ja:
-- Base URL: `http://localhost:4000/api`
-- Autentifikacija: JWT Bearer token u Authorization headeru
+Stranice su protected — neprijavljeni korisnici se redirectaju na login.
 
 ## Razvoj
 
-### Dodavanje nove stranice
+**Nova stranica:** kreiraj komponentu u `src/pages/`, dodaj rutu u `App.jsx`, dodaj link u `DashboardLayout.jsx`.
 
-1. Kreiraj komponentu u `src/pages/`
-2. Dodaj rutu u `src/App.jsx`
-3. Dodaj navigacijski link u `src/components/DashboardLayout.jsx`
+**Novi API servis:** kreiraj u `src/services/`, koristi `api.js` instancu koja već handla auth token.
 
-### Dodavanje novog API servisa
-
-1. Kreiraj servis u `src/services/`
-2. Koristi `api.js` instance za HTTP zahtjeve
-3. Servisi automatski šalju JWT token ako je korisnik prijavljen
-
-### Stiliziranje
-
-- CSS moduli su podržani
-- Globalni stilovi u `src/index.css`
-- Component-specifični stilovi kao `.css` fajlovi pokraj komponenti
+**Stilovi:** globalni u `src/index.css`, component-specifični `.css` fileovi pokraj komponenti.
 
 ## Troubleshooting
 
-### CORS greške
-
-Provjeri da backend ima CORS konfiguriran za `http://localhost:5173`
-
-### API pozivi ne rade
-
-1. Provjeri da li backend radi na `http://localhost:4000`
-2. Provjeri konzolu preglednika za greške
-3. Provjeri network tab u dev tools-u
-
-### Token nije valjan
-
-1. Odjavi se i prijavi ponovno
-2. Provjeri da JWT_SECRET na backendu i frontendu odgovara
+- **CORS greške** — provjeri da backend ima CORS za `http://localhost:5173`
+- **API ne radi** — backend mora biti pokrenut, provjeri network tab
+- **Token error** — odjavi se pa se prijavi ponovo
 
 ## Licenca
 
