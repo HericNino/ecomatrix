@@ -15,6 +15,7 @@ import {
   Legend,
   ResponsiveContainer,
 } from 'recharts';
+import api from '../services/api';
 import householdsService from '../services/households.service';
 import measurementsService from '../services/measurements.service';
 import costsService from '../services/costs.service';
@@ -38,6 +39,7 @@ const Dashboard = () => {
   const [dailyCosts, setDailyCosts] = useState([]);
   const [activeGoals, setActiveGoals] = useState([]);
   const [lastUpdated, setLastUpdated] = useState(null);
+  const [liveData, setLiveData] = useState(null);
 
   useEffect(() => {
     loadDashboardData();
@@ -49,6 +51,24 @@ const Dashboard = () => {
     }, 30000);
 
     return () => clearInterval(refreshInterval);
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const fetchLive = async () => {
+      try {
+        const householdsData = await householdsService.getAll();
+        const hh = (householdsData.households || [])[0];
+        if (!hh) return;
+        const { data } = await api.get(`/households/${hh.id_kucanstvo}/live`);
+        if (!cancelled) setLiveData(data);
+      } catch (_) {}
+    };
+
+    fetchLive();
+    const liveInterval = setInterval(fetchLive, 5000);
+    return () => { cancelled = true; clearInterval(liveInterval); };
   }, []);
 
   const loadDashboardData = async () => {
@@ -204,28 +224,56 @@ const Dashboard = () => {
         </div>
       )}
 
+      {/* Live Consumption Strip */}
+      {liveData && liveData.devices && liveData.devices.length > 0 && (
+        <div className="live-strip">
+          <span className="live-dot"></span>
+          <span className="live-strip-total">{liveData.totalW} W</span>
+          <span className="live-strip-sep">—</span>
+          {liveData.devices.map((d, i) => (
+            <span key={d.uredjaj_id} className="live-strip-device">
+              {i > 0 && <span className="live-strip-divider">·</span>}
+              {d.naziv}: <strong>{d.snaga_w} W</strong>
+            </span>
+          ))}
+          <span className="live-strip-time">{new Date(liveData.timestamp).toLocaleTimeString('hr-HR')}</span>
+        </div>
+      )}
+
       {/* Stats Cards */}
       <div className="stats-grid">
         <div className="stat-card">
-          <div className="stat-icon" style={{backgroundColor: '#dbeafe', color: '#2563eb'}}>🏠</div>
+          <div className="stat-icon" style={{background: '#dbeafe'}}>
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="#2563eb" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M2 9L10 2l8 7v9a1 1 0 01-1 1H3a1 1 0 01-1-1z"/><path d="M8 21V11h4v10"/>
+            </svg>
+          </div>
           <div className="stat-content">
-            <div className="stat-label">Domovi</div>
+            <span className="stat-label">Domovi</span>
             <div className="stat-value">{households.length}</div>
           </div>
         </div>
 
         <div className="stat-card">
-          <div className="stat-icon" style={{backgroundColor: '#fef3c7', color: '#d97706'}}>⚡</div>
+          <div className="stat-icon" style={{background: '#fef3c7'}}>
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="#d97706" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="2" y="2" width="16" height="16" rx="3"/><path d="M10 6v4l3 3"/>
+            </svg>
+          </div>
           <div className="stat-content">
-            <div className="stat-label">Aktivni uređaji</div>
+            <span className="stat-label">Aktivni uređaji</span>
             <div className="stat-value">{stats?.total_devices || 0}</div>
           </div>
         </div>
 
         <div className="stat-card">
-          <div className="stat-icon" style={{backgroundColor: '#e0e7ff', color: '#4f46e5'}}>📊</div>
+          <div className="stat-icon" style={{background: '#e0e7ff'}}>
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="#4f46e5" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M2 16l4-5 3 3 4-6 5 3"/><path d="M2 2v16h16"/>
+            </svg>
+          </div>
           <div className="stat-content">
-            <div className="stat-label">Ukupna potrošnja</div>
+            <span className="stat-label">Potrošnja (30 dana)</span>
             <div className="stat-value">
               {stats?.total_consumption?.toFixed(2) || '0.00'}
               <span className="stat-unit">kWh</span>
@@ -234,9 +282,13 @@ const Dashboard = () => {
         </div>
 
         <div className="stat-card">
-          <div className="stat-icon" style={{backgroundColor: '#d1fae5', color: '#059669'}}>💰</div>
+          <div className="stat-icon" style={{background: '#dcfce7'}}>
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="#16a34a" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="10" cy="10" r="8"/><path d="M10 6v4l2 2"/>
+            </svg>
+          </div>
           <div className="stat-content">
-            <div className="stat-label">Ukupni troškovi</div>
+            <span className="stat-label">Ukupni troškovi</span>
             <div className="stat-value">
               {costsData?.total?.troskovi?.toFixed(2) || '0.00'}
               <span className="stat-unit">€</span>
@@ -371,10 +423,21 @@ const Dashboard = () => {
                       <Pie
                         data={chartData.byType}
                         cx="50%"
-                        cy="50%"
+                        cy="40%"
                         labelLine={false}
-                        label={(entry) => `${entry.name}: ${entry.value.toFixed(1)} kWh`}
-                        outerRadius={80}
+                        label={({ cx, cy, midAngle, innerRadius, outerRadius, percent }) => {
+                          if (percent < 0.05) return null;
+                          const RADIAN = Math.PI / 180;
+                          const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
+                          const x = cx + radius * Math.cos(-midAngle * RADIAN);
+                          const y = cy + radius * Math.sin(-midAngle * RADIAN);
+                          return (
+                            <text x={x} y={y} fill="white" textAnchor="middle" dominantBaseline="central" fontSize={12} fontWeight={600}>
+                              {`${(percent * 100).toFixed(0)}%`}
+                            </text>
+                          );
+                        }}
+                        outerRadius={100}
                         fill="#8884d8"
                         dataKey="value"
                       >
@@ -382,7 +445,8 @@ const Dashboard = () => {
                           <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                         ))}
                       </Pie>
-                      <Tooltip formatter={(value) => `${value.toFixed(2)} kWh`} />
+                      <Tooltip formatter={(value, name) => [`${value.toFixed(2)} kWh`, name]} />
+                      <Legend layout="horizontal" verticalAlign="bottom" align="center" wrapperStyle={{ fontSize: '12px', paddingTop: '8px' }} />
                     </PieChart>
                   </ResponsiveContainer>
                 </div>
@@ -507,13 +571,16 @@ const Dashboard = () => {
         <h2 className="section-title">Brze akcije</h2>
         <div className="grid grid-cols-3">
           <Link to="/households" className="action-card">
-            <span>Dodaj dom</span>
+            <span className="action-card-icon">🏠</span>
+            <span className="action-card-label">Dodaj dom</span>
           </Link>
           <Link to="/devices" className="action-card">
-            <span>Dodaj uređaj</span>
+            <span className="action-card-icon">💡</span>
+            <span className="action-card-label">Dodaj uređaj</span>
           </Link>
           <Link to="/reports" className="action-card">
-            <span>Pregled izveštaja</span>
+            <span className="action-card-icon">📊</span>
+            <span className="action-card-label">Izvještaji</span>
           </Link>
         </div>
       </div>

@@ -29,6 +29,7 @@ export async function analyzeConsumptionPatterns(korisnikId, kucanstvoId, danaUn
       m.uredjaj_id,
       m.datum_vrijeme,
       m.vrijednost_kwh,
+      m.tip_mjerenja,
       u.naziv AS uredjaj_naziv,
       u.tip_uredjaja,
       p.naziv AS prostorija_naziv
@@ -54,33 +55,48 @@ export async function analyzeConsumptionPatterns(korisnikId, kucanstvoId, danaUn
   const consumptionData = [];
   const deviceMap = {};
 
-  measurements.forEach((m, idx) => {
-    if (!deviceMap[m.uredjaj_id]) {
-      deviceMap[m.uredjaj_id] = {
-        lastValue: m.vrijednost_kwh,
-        lastTime: m.datum_vrijeme,
-        naziv: m.uredjaj_naziv,
-        tip: m.tip_uredjaja,
-        prostorija: m.prostorija_naziv,
-      };
-    } else {
-      const prev = deviceMap[m.uredjaj_id];
-      const consumption = m.vrijednost_kwh - prev.lastValue;
-
-      // Samo ako je potrošnja pozitivna (brojač ide naprijed)
-      if (consumption > 0 && consumption < 10) { // razumna granica
+  measurements.forEach((m) => {
+    if (m.tip_mjerenja !== 'automatsko') {
+      // procjena/rucno: each row is already a daily consumption total
+      const kwh = parseFloat(m.vrijednost_kwh);
+      if (kwh > 0) {
         consumptionData.push({
           uredjaj_id: m.uredjaj_id,
           uredjaj_naziv: m.uredjaj_naziv,
           tip_uredjaja: m.tip_uredjaja,
           prostorija_naziv: m.prostorija_naziv,
           datum_vrijeme: m.datum_vrijeme,
-          potrosnja_kwh: consumption,
+          potrosnja_kwh: kwh,
         });
       }
+    } else {
+      // automatsko (Shelly): cumulative meter — compute delta between consecutive readings
+      if (!deviceMap[m.uredjaj_id]) {
+        deviceMap[m.uredjaj_id] = {
+          lastValue: m.vrijednost_kwh,
+          lastTime: m.datum_vrijeme,
+          naziv: m.uredjaj_naziv,
+          tip: m.tip_uredjaja,
+          prostorija: m.prostorija_naziv,
+        };
+      } else {
+        const prev = deviceMap[m.uredjaj_id];
+        const consumption = m.vrijednost_kwh - prev.lastValue;
 
-      deviceMap[m.uredjaj_id].lastValue = m.vrijednost_kwh;
-      deviceMap[m.uredjaj_id].lastTime = m.datum_vrijeme;
+        if (consumption > 0 && consumption < 50) {
+          consumptionData.push({
+            uredjaj_id: m.uredjaj_id,
+            uredjaj_naziv: m.uredjaj_naziv,
+            tip_uredjaja: m.tip_uredjaja,
+            prostorija_naziv: m.prostorija_naziv,
+            datum_vrijeme: m.datum_vrijeme,
+            potrosnja_kwh: consumption,
+          });
+        }
+
+        deviceMap[m.uredjaj_id].lastValue = m.vrijednost_kwh;
+        deviceMap[m.uredjaj_id].lastTime = m.datum_vrijeme;
+      }
     }
   });
 
@@ -315,35 +331,25 @@ export async function compareWithPreviousPeriod(korisnikId, kucanstvoId, danaUna
   const previousStart = new Date(previousEnd);
   previousStart.setDate(previousStart.getDate() - danaUnazad);
 
-  // Dohvati podatke za trenutno razdoblje
-  const [currentData] = await db.query(
-    `SELECT
+  const consumptionQuery = `
+    SELECT
       u.uredjaj_id,
-      MIN(m.vrijednost_kwh) as min_value,
-      MAX(m.vrijednost_kwh) as max_value,
-      MAX(m.vrijednost_kwh) - MIN(m.vrijednost_kwh) as consumption
-     FROM mjerenje m
-     JOIN uredjaj u ON m.uredjaj_id = u.uredjaj_id
-     JOIN prostorija p ON u.prostorija_id = p.prostorija_id
-     WHERE p.kucanstvo_id = ? AND m.datum_vrijeme >= ? AND m.datum_vrijeme <= ? AND m.validno = 1
-     GROUP BY u.uredjaj_id`,
-    [kucanstvoId, currentStart, currentEnd]
-  );
+      COALESCE(
+        MAX(CASE WHEN m.tip_mjerenja = 'automatsko' THEN m.vrijednost_kwh END) -
+        MIN(CASE WHEN m.tip_mjerenja = 'automatsko' THEN m.vrijednost_kwh END),
+        0
+      ) + COALESCE(
+        SUM(CASE WHEN m.tip_mjerenja != 'automatsko' THEN m.vrijednost_kwh END),
+        0
+      ) as consumption
+    FROM mjerenje m
+    JOIN uredjaj u ON m.uredjaj_id = u.uredjaj_id
+    JOIN prostorija p ON u.prostorija_id = p.prostorija_id
+    WHERE p.kucanstvo_id = ? AND m.datum_vrijeme >= ? AND m.datum_vrijeme <= ? AND m.validno = 1
+    GROUP BY u.uredjaj_id`;
 
-  // Dohvati podatke za prošlo razdoblje
-  const [previousData] = await db.query(
-    `SELECT
-      u.uredjaj_id,
-      MIN(m.vrijednost_kwh) as min_value,
-      MAX(m.vrijednost_kwh) as max_value,
-      MAX(m.vrijednost_kwh) - MIN(m.vrijednost_kwh) as consumption
-     FROM mjerenje m
-     JOIN uredjaj u ON m.uredjaj_id = u.uredjaj_id
-     JOIN prostorija p ON u.prostorija_id = p.prostorija_id
-     WHERE p.kucanstvo_id = ? AND m.datum_vrijeme >= ? AND m.datum_vrijeme <= ? AND m.validno = 1
-     GROUP BY u.uredjaj_id`,
-    [kucanstvoId, previousStart, previousEnd]
-  );
+  const [currentData] = await db.query(consumptionQuery, [kucanstvoId, currentStart, currentEnd]);
+  const [previousData] = await db.query(consumptionQuery, [kucanstvoId, previousStart, previousEnd]);
 
   const currentTotal = currentData.reduce((sum, d) => sum + (parseFloat(d.consumption) || 0), 0);
   const previousTotal = previousData.reduce((sum, d) => sum + (parseFloat(d.consumption) || 0), 0);

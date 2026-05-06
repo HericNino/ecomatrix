@@ -1,7 +1,5 @@
 .insights-page {
-  padding: 24px;
   max-width: 1400px;
-  margin: 0 auto;
 }
 
 .page-header {
@@ -105,12 +103,13 @@
 .comparison-card {
   background: var(--bg-card);
   border: 1px solid var(--border-light);
-  border-radius: 8px;
+  border-radius: 10px;
   padding: 24px;
   display: flex;
   align-items: center;
   gap: 24px;
   flex-wrap: wrap;
+  box-shadow: var(--shadow-sm);
 }
 
 .comparison-item {
@@ -263,9 +262,10 @@
 .pattern-card {
   background: var(--bg-card);
   border: 1px solid var(--border-light);
-  border-radius: 8px;
+  border-radius: 10px;
   padding: 24px;
   margin-bottom: 16px;
+  box-shadow: var(--shadow-sm);
 }
 
 .pattern-card h3 {
@@ -402,9 +402,6 @@
 }
 
 @media (max-width: 768px) {
-  .insights-page {
-    padding: 16px;
-  }
 
   .page-header h1 {
     font-size: 24px;
@@ -470,10 +467,6 @@
 @media (max-width: 480px) {
   .page-header h1 {
     font-size: 20px;
-  }
-
-  .insights-page {
-    padding: 12px;
   }
 
   .comparison-section h2,

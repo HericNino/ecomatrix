@@ -229,9 +229,16 @@ export async function getDailyConsumption(uredjajId, datum) {
 
   const [rows] = await db.query(
     `SELECT
-      MIN(vrijednost_kwh) AS pocetna_vrijednost,
-      MAX(vrijednost_kwh) AS krajnja_vrijednost,
-      MAX(vrijednost_kwh) - MIN(vrijednost_kwh) AS potrosnja,
+      MIN(CASE WHEN tip_mjerenja = 'automatsko' THEN vrijednost_kwh END) AS pocetna_vrijednost,
+      MAX(CASE WHEN tip_mjerenja = 'automatsko' THEN vrijednost_kwh END) AS krajnja_vrijednost,
+      COALESCE(
+        MAX(CASE WHEN tip_mjerenja = 'automatsko' THEN vrijednost_kwh END) -
+        MIN(CASE WHEN tip_mjerenja = 'automatsko' THEN vrijednost_kwh END),
+        0
+      ) + COALESCE(
+        SUM(CASE WHEN tip_mjerenja != 'automatsko' THEN vrijednost_kwh END),
+        0
+      ) AS potrosnja,
       COUNT(*) AS broj_mjerenja
     FROM mjerenje
     WHERE uredjaj_id = ?
@@ -264,7 +271,14 @@ export async function getConsumptionStats(korisnikId, kucanstvoId, datumOd, datu
       COUNT(m.mjerenje_id) AS broj_mjerenja,
       MIN(m.vrijednost_kwh) AS min_vrijednost,
       MAX(m.vrijednost_kwh) AS max_vrijednost,
-      MAX(m.vrijednost_kwh) - MIN(m.vrijednost_kwh) AS ukupna_potrosnja,
+      COALESCE(
+        MAX(CASE WHEN m.tip_mjerenja = 'automatsko' THEN m.vrijednost_kwh END) -
+        MIN(CASE WHEN m.tip_mjerenja = 'automatsko' THEN m.vrijednost_kwh END),
+        0
+      ) + COALESCE(
+        SUM(CASE WHEN m.tip_mjerenja != 'automatsko' THEN m.vrijednost_kwh END),
+        0
+      ) AS ukupna_potrosnja,
       AVG(m.vrijednost_kwh) AS prosjecna_vrijednost
     FROM mjerenje m
     JOIN uredjaj u ON m.uredjaj_id = u.uredjaj_id

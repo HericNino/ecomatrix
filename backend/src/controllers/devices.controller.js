@@ -16,6 +16,17 @@ const DOZVOLJENI_TIPOVI_UREDJAJA = [
   'ostalo'
 ];
 
+export async function getLiveConsumption(req, res, next) {
+  try {
+    const korisnikId = req.user.id;
+    const kucanstvoId = Number(req.params.id);
+    const result = await svc.getLiveConsumption(korisnikId, kucanstvoId);
+    res.json(result);
+  } catch (error) {
+    next(error);
+  }
+}
+
 export async function listDevicesForHousehold(req, res, next) {
   try {
     const korisnikId = req.user.id;

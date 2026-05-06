@@ -1,7 +1,5 @@
 .reports-page {
-  padding: 24px;
   max-width: 1400px;
-  margin: 0 auto;
 }
 
 .page-header {
@@ -60,7 +58,8 @@
   padding: 20px;
   background: var(--bg-card);
   border: 1px solid var(--border-light);
-  border-radius: 8px;
+  border-radius: 10px;
+  box-shadow: var(--shadow-sm);
 }
 
 .control-group {
@@ -131,10 +130,11 @@
 /* Filters */
 .filters-section {
   background: var(--bg-card);
-  border: 1px solid var(--border-light);
-  border-radius: 8px;
+  border: 1px solid rgba(0,0,0,0.06);
+  border-radius: 12px;
   padding: 20px;
   margin-bottom: 24px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.10), 0 2px 8px rgba(0,0,0,0.07);
 }
 
 .filter-row {
@@ -157,12 +157,42 @@
 
 .filter-input,
 .filter-select {
-  padding: 10px 12px;
+  padding: 9px 12px;
   border: 1px solid var(--border-light);
   border-radius: 6px;
   font-size: 14px;
+  font-family: inherit;
   color: var(--text-primary);
-  transition: all 0.15s;
+  background: #ffffff;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  cursor: pointer;
+  box-sizing: border-box;
+}
+
+input[type="date"].filter-input {
+  min-width: 155px;
+  width: 155px;
+  appearance: none;
+  -webkit-appearance: none;
+  padding-right: 8px;
+  line-height: 1.4;
+}
+
+input[type="date"].filter-input::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  opacity: 0.6;
+  padding: 0;
+  margin-left: 4px;
+}
+
+.filter-select {
+  min-width: 140px;
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%2371717a' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  padding-right: 30px;
 }
 
 .filter-input:hover,
@@ -174,7 +204,7 @@
 .filter-select:focus {
   outline: none;
   border-color: var(--color-primary);
-  box-shadow: 0 0 0 3px var(--shadow-primary);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
 }
 
 .generate-btn {
@@ -227,18 +257,19 @@
 
 .summary-card {
   background: var(--bg-card);
-  border: 1px solid var(--border-light);
-  border-radius: 8px;
+  border: 1px solid rgba(0,0,0,0.06);
+  border-radius: 12px;
   padding: 20px;
   display: flex;
   align-items: center;
   gap: 16px;
-  transition: all 0.15s;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.10), 0 2px 8px rgba(0,0,0,0.07);
+  transition: box-shadow 0.15s, transform 0.15s;
 }
 
 .summary-card:hover {
-  border-color: var(--color-primary);
-  box-shadow: var(--shadow-hover);
+  box-shadow: 0 4px 14px rgba(0,0,0,0.14), 0 8px 24px rgba(0,0,0,0.09);
+  transform: translateY(-1px);
 }
 
 .summary-icon {
@@ -271,9 +302,10 @@
 .chart-section {
   background: var(--bg-card);
   border: 1px solid var(--border-light);
-  border-radius: 8px;
+  border-radius: 10px;
   padding: 24px;
   margin-bottom: 24px;
+  box-shadow: var(--shadow-sm);
 }
 
 .chart-section h2 {
@@ -443,9 +475,6 @@
 }
 
 @media (max-width: 768px) {
-  .reports-page {
-    padding: 16px;
-  }
 
   .page-header {
     flex-direction: column;

@@ -11,8 +11,13 @@
 
 /* ==================== Global Overrides ==================== */
 
+html, body {
+  background-color: #f4f6f9 !important;
+}
+
 #root {
   min-height: 100vh;
+  background-color: #f4f6f9 !important;
 }
 
 button,

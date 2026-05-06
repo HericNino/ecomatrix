@@ -60,7 +60,7 @@ const Households = () => {
         householdsService.getDevices(householdId),
       ]);
       setRooms(roomsData.rooms || []);
-      setDevices(devicesData.devices || []);
+      setDevices(devicesData.devices || devicesData || []);
     } catch (err) {
       toast.error('Greška prilikom učitavanja detalja');
     }
@@ -384,12 +384,14 @@ const Households = () => {
                 ) : (
                   <div className="devices-grid">
                     {devices.map((device) => (
-                      <div key={device.id_uredjaj} className="device-card">
+                      <div key={device.id_uredjaj || device.id} className="device-card">
                         <div className="device-icon">💡</div>
                         <div className="device-info">
                           <h4>{device.naziv}</h4>
-                          <p>{device.naziv_prostorija}</p>
-                          {device.snaga && <span>{device.snaga}W</span>}
+                          <p>{device.prostorija?.naziv || device.naziv_prostorija || ''}</p>
+                          {(device.nominalna_snaga || device.snaga) && (
+                            <span>{device.nominalna_snaga || device.snaga}W</span>
+                          )}
                         </div>
                       </div>
                     ))}

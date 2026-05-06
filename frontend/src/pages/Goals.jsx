@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import householdsService from '../services/households.service';
 import goalsService from '../services/goals.service';
+import costsService from '../services/costs.service';
 import ConfirmDialog from '../components/ConfirmDialog';
 import './Goals.css';
 
@@ -14,12 +15,12 @@ const Goals = () => {
   const [editingGoal, setEditingGoal] = useState(null);
   const [showConfirmDelete, setShowConfirmDelete] = useState(false);
   const [goalToDelete, setGoalToDelete] = useState(null);
+  const [cijenaKwh, setCijenaKwh] = useState(0.15);
 
-  // Form state
+  // Form state — cilj_kwh se automatski izračunava iz cilj_troskova / cijena_kwh
   const [formData, setFormData] = useState({
     naziv: '',
     tip_cilja: 'mjesecni',
-    cilj_kwh: '',
     cilj_troskova: '',
     datum_pocetka: '',
     datum_zavrsetka: '',
@@ -32,6 +33,9 @@ const Goals = () => {
   useEffect(() => {
     if (selectedHousehold) {
       loadGoals();
+      costsService.getElectricityPrice(selectedHousehold)
+        .then(data => setCijenaKwh(data.cijena_kwh || 0.15))
+        .catch(() => {});
     }
   }, [selectedHousehold]);
 
@@ -67,18 +71,15 @@ const Goals = () => {
 
   const handleOpenModal = (goal = null) => {
     if (goal) {
-      // Uredi postojeci cilj
       setEditingGoal(goal);
       setFormData({
         naziv: goal.naziv,
         tip_cilja: goal.tip_cilja,
-        cilj_kwh: goal.cilj_kwh || '',
         cilj_troskova: goal.cilj_troskova || '',
         datum_pocetka: goal.datum_pocetka,
         datum_zavrsetka: goal.datum_zavrsetka
       });
     } else {
-      // Novi cilj - postavi defaultne datume za trenutni mjesec
       const today = new Date();
       const startDate = new Date(today.getFullYear(), today.getMonth(), 1);
       const endDate = new Date(today.getFullYear(), today.getMonth() + 1, 0);
@@ -87,7 +88,6 @@ const Goals = () => {
       setFormData({
         naziv: `Cilj ${today.getMonth() + 1}/${today.getFullYear()}`,
         tip_cilja: 'mjesecni',
-        cilj_kwh: '',
         cilj_troskova: '',
         datum_pocetka: startDate.toISOString().split('T')[0],
         datum_zavrsetka: endDate.toISOString().split('T')[0]
@@ -102,7 +102,6 @@ const Goals = () => {
     setFormData({
       naziv: '',
       tip_cilja: 'mjesecni',
-      cilj_kwh: '',
       cilj_troskova: '',
       datum_pocetka: '',
       datum_zavrsetka: '',
@@ -113,20 +112,21 @@ const Goals = () => {
     e.preventDefault();
 
     if (!formData.naziv || !formData.datum_pocetka || !formData.datum_zavrsetka) {
-      toast.error('Molimo popunite sve obavezna polja');
+      toast.error('Molimo popunite sve obavezne podatke');
       return;
     }
 
-    if (!formData.cilj_kwh && !formData.cilj_troskova) {
-      toast.error('Morate postaviti barem jedan cilj (kWh ili troškovi)');
+    if (!formData.cilj_troskova || parseFloat(formData.cilj_troskova) <= 0) {
+      toast.error('Unesite ciljani trošak u eurima');
       return;
     }
 
     try {
+      const cijenaKwhVal = cijenaKwh > 0 ? cijenaKwh : 0.15;
       const goalData = {
         ...formData,
-        cilj_kwh: formData.cilj_kwh ? parseFloat(formData.cilj_kwh) : null,
-        cilj_troskova: formData.cilj_troskova ? parseFloat(formData.cilj_troskova) : null,
+        cilj_troskova: parseFloat(formData.cilj_troskova),
+        cilj_kwh: parseFloat((parseFloat(formData.cilj_troskova) / cijenaKwhVal).toFixed(2)),
       };
 
       if (editingGoal) {
@@ -270,45 +270,27 @@ const Goals = () => {
               </div>
 
               <div className="goal-targets">
-                {goal.cilj_kwh && (
-                  <div className="target-item">
-                    <div className="target-label">Cilj potrošnje</div>
-                    <div className="target-value">{goal.cilj_kwh} kWh</div>
-                    <div className="progress-bar">
-                      <div
-                        className="progress-fill"
-                        style={{
-                          width: `${Math.min(goal.progress.postotak_kwh || 0, 100)}%`,
-                          background: getStatusColor(goal.progress.status),
-                        }}
-                      />
-                    </div>
-                    <div className="progress-text">
-                      {goal.progress.trenutna_potrosnja_kwh} kWh ({goal.progress.postotak_kwh}%)
-                    </div>
+                <div className="target-item">
+                  <div className="target-label">Ciljani trošak</div>
+                  <div className="target-value">{goal.cilj_troskova} €</div>
+                  <div className="progress-bar">
+                    <div
+                      className="progress-fill"
+                      style={{
+                        width: `${Math.min(goal.progress.postotak_troskova || 0, 100)}%`,
+                        background: getStatusColor(goal.progress.status),
+                      }}
+                    />
                   </div>
-                )}
-
-                {goal.cilj_troskova && (
-                  <div className="target-item">
-                    <div className="target-label">Cilj troškova</div>
-                    <div className="target-value">
-                      {goal.cilj_troskova} {goal.progress ? '€' : ''}
-                    </div>
-                    <div className="progress-bar">
-                      <div
-                        className="progress-fill"
-                        style={{
-                          width: `${Math.min(goal.progress.postotak_troskova || 0, 100)}%`,
-                          background: getStatusColor(goal.progress.status),
-                        }}
-                      />
-                    </div>
-                    <div className="progress-text">
-                      {goal.progress.trenutni_troskovi} € ({goal.progress.postotak_troskova}%)
-                    </div>
+                  <div className="progress-text">
+                    {goal.progress.trenutni_troskovi} € / {goal.cilj_troskova} € ({goal.progress.postotak_troskova ?? 0}%)
                   </div>
-                )}
+                  {goal.cilj_kwh && (
+                    <div className="target-kwh-hint">
+                      ≈ {goal.cilj_kwh} kWh pri {cijenaKwh.toFixed(4)} €/kWh
+                    </div>
+                  )}
+                </div>
               </div>
 
               <div className="goal-status" style={{ color: getStatusColor(goal.progress.status) }}>
@@ -366,32 +348,23 @@ const Goals = () => {
                 </div>
               </div>
 
-              <div className="form-row">
-                <div className="form-group">
-                  <label>Cilj potrošnje (kWh)</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    value={formData.cilj_kwh}
-                    onChange={(e) => setFormData({ ...formData, cilj_kwh: e.target.value })}
-                    className="form-input"
-                    placeholder="npr. 150"
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label>Cilj troškova (€)</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    value={formData.cilj_troskova}
-                    onChange={(e) => setFormData({ ...formData, cilj_troskova: e.target.value })}
-                    className="form-input"
-                    placeholder="npr. 50"
-                  />
-                </div>
+              <div className="form-group">
+                <label>Ciljani trošak (€) *</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0.01"
+                  value={formData.cilj_troskova}
+                  onChange={(e) => setFormData({ ...formData, cilj_troskova: e.target.value })}
+                  className="form-input"
+                  placeholder="npr. 50.00"
+                  required
+                />
+                {formData.cilj_troskova && cijenaKwh > 0 && (
+                  <small style={{ color: 'var(--text-secondary)', marginTop: '4px', display: 'block' }}>
+                    ≈ {(parseFloat(formData.cilj_troskova) / cijenaKwh).toFixed(1)} kWh pri {cijenaKwh.toFixed(4)} €/kWh
+                  </small>
+                )}
               </div>
 
               <div className="form-actions">

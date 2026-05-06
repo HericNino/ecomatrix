@@ -45,7 +45,7 @@ async function collectDataFromAllActiveDevices() {
       JOIN pametni_utikac pu ON u.uredjaj_id = pu.uredjaj_id
       JOIN prostorija p ON u.prostorija_id = p.prostorija_id
       JOIN kucanstvo k ON p.kucanstvo_id = k.kucanstvo_id
-      WHERE pu.status IN ('aktivan', 'kvar') AND pu.ip_adresa IS NOT NULL`
+      WHERE pu.status IN ('aktivan', 'neaktivan', 'kvar') AND pu.ip_adresa IS NOT NULL`
     );
 
     if (devices.length === 0) {
@@ -74,8 +74,8 @@ async function collectDataFromAllActiveDevices() {
           'automatsko'
         );
 
-        // Ako je uređaj bio označen kao kvar, vrati ga na aktivan
-        if (device.status === 'kvar') {
+        // Ako je uređaj bio neaktivan ili kvar, vrati ga na aktivan
+        if (device.status !== 'aktivan') {
           await db.query(
             `UPDATE pametni_utikac SET status = 'aktivan' WHERE utikac_id = ?`,
             [device.utikac_id]
@@ -119,45 +119,25 @@ async function collectDataFromAllActiveDevices() {
           errorType
         );
 
-        // Pametno handlanje grešaka - ne označi odmah kao neaktivno
-        // Samo za perzistentne network/timeout errore nakon retry logike
+        // Za network/timeout greške: odmah označi kao neaktivan
         if (errorType === shellyService.ErrorType.TIMEOUT || errorType === shellyService.ErrorType.NETWORK) {
-          // Provjeri koliko puta je device failao zaredom
-          const [failCount] = await db.query(
-            `SELECT COUNT(*) as fails
-             FROM mjerenje
-             WHERE uredjaj_id = ? AND validno = 0
-               AND datum_vrijeme > DATE_SUB(NOW(), INTERVAL 30 MINUTE)`,
-            [device.uredjaj_id]
-          );
-
-          // Ako je failao više od 3 puta u zadnjih 30 minuta, označi kao neaktivan
-          if (failCount[0].fails >= 3) {
+          if (device.status === 'aktivan') {
             await db.query(
-              `UPDATE pametni_utikac SET status = 'kvar' WHERE utikac_id = ?`,
+              `UPDATE pametni_utikac SET status = 'neaktivan' WHERE utikac_id = ?`,
               [device.utikac_id]
             );
-            logger.logWarn(`Device marked as faulty after repeated failures`, {
+            logger.logWarn(`Device marked as inactive — unreachable`, {
               deviceId: device.uredjaj_id,
-              deviceName: device.uredjaj_naziv,
-              failCount: failCount[0].fails
+              deviceName: device.uredjaj_naziv
             });
 
-            // Create device failure notification
             notificationService.notifyDeviceFailure(
               device.korisnik_id,
               device.kucanstvo_id,
               device.uredjaj_id,
               device.uredjaj_naziv,
-              `Uređaj je označen kao neispravan nakon ${failCount[0].fails} uzastopnih neuspjelih pokušaja prikupljanja podataka.`
+              `Utičnica uređaja nije dostupna na mreži.`
             ).catch(err => logger.logError('Failed to create device failure notification', err));
-          } else {
-            // Spremi nevalidno mjerenje za tracking
-            await db.query(
-              `INSERT INTO mjerenje (uredjaj_id, utikac_id, vrijednost_kwh, datum_vrijeme, tip_mjerenja, validno)
-               VALUES (?, ?, 0, NOW(), 'automatsko', 0)`,
-              [device.uredjaj_id, device.utikac_id]
-            );
           }
         }
       }

@@ -1,7 +1,5 @@
 .settings-page {
-  padding: 24px;
   max-width: 900px;
-  margin: 0 auto;
 }
 
 .page-header {
@@ -61,10 +59,11 @@
 /* Settings Section */
 .settings-section {
   background: var(--bg-card);
-  border: 1px solid var(--border-light);
-  border-radius: 8px;
+  border: 1px solid rgba(0,0,0,0.06);
+  border-radius: 12px;
   padding: 24px;
-  margin-bottom: 24px;
+  margin-bottom: 20px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.10), 0 2px 8px rgba(0,0,0,0.07);
 }
 
 .settings-section h2 {
@@ -211,9 +210,6 @@
 
 /* Responsive */
 @media (max-width: 768px) {
-  .settings-page {
-    padding: 16px;
-  }
 
   .page-header h1 {
     font-size: 24px;
@@ -253,10 +249,6 @@
 @media (max-width: 480px) {
   .page-header h1 {
     font-size: 20px;
-  }
-
-  .settings-page {
-    padding: 12px;
   }
 
   .settings-section {

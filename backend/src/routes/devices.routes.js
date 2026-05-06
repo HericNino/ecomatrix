@@ -12,6 +12,9 @@ export const devicesRouter = Router();
 // Dohvaćanje svih uređaja za kućanstvo
 devicesRouter.get('/households/:id/devices', ctrl.listDevicesForHousehold);
 
+// Uživo potrošnja sa Shelly utičnica
+devicesRouter.get('/households/:id/live', ctrl.getLiveConsumption);
+
 // Kreiranje novog uređaja za kućanstvo
 devicesRouter.post('/households/:id/devices', ctrl.createDeviceForHousehold);
 

@@ -99,39 +99,28 @@ function calculateConfidence(actualData, predictionLine) {
 }
 
 /**
- * Identifikuje optimalno vrijeme za korištenje uređaja
+ * Identifikuje optimalno vrijeme za korištenje uređaja.
+ * Ulaz: [{hour: 0-23, avg_consumption: kWh}] — već agregiran po satu dana.
  */
 export function identifyOptimalUsageTimes(hourlyData) {
-  if (hourlyData.length === 0) return null;
+  if (hourlyData.length < 6) return null; // Premalo podataka za smislenu preporuku
 
-  // Grupiranje po satima
-  const hourlyConsumption = {};
-  hourlyData.forEach(d => {
-    const hour = new Date(d.datum_vrijeme).getHours();
-    if (!hourlyConsumption[hour]) {
-      hourlyConsumption[hour] = [];
-    }
-    hourlyConsumption[hour].push(d.potrosnja_kwh);
-  });
+  const sorted = [...hourlyData].sort((a, b) => a.avg_consumption - b.avg_consumption);
 
-  // Izračunaj prosjek za svaki sat
-  const hourlyAvg = {};
-  Object.keys(hourlyConsumption).forEach(hour => {
-    hourlyAvg[hour] = stats.mean(hourlyConsumption[hour]);
-  });
+  // Uzmi gornju i donju trećinu da bismo garantirali da se ne preklapaju
+  const tercile = Math.max(1, Math.floor(sorted.length / 3));
+  const lowestHours = sorted.slice(0, tercile);
+  const highestHours = sorted.slice(-tercile).reverse();
 
-  // Sortiraj sate po potrošnji
-  const sortedHours = Object.entries(hourlyAvg)
-    .sort((a, b) => a[1] - b[1])
-    .map(([hour, avg]) => ({
-      hour: parseInt(hour),
-      avg_consumption: parseFloat(avg.toFixed(2))
-    }));
+  // Eksplicitna provjera preklapanja (sigurnosni net)
+  const lowestSet = new Set(lowestHours.map(h => h.hour));
+  const highestFiltered = highestHours.filter(h => !lowestSet.has(h.hour));
+
+  if (highestFiltered.length === 0) return null;
 
   return {
-    lowestConsumptionHours: sortedHours.slice(0, 5),
-    highestConsumptionHours: sortedHours.slice(-5).reverse(),
-    recommendation: `Najniža potrošnja: ${sortedHours[0].hour}:00-${sortedHours[0].hour + 1}:00`
+    lowestConsumptionHours: lowestHours,
+    highestConsumptionHours: highestFiltered,
   };
 }
 
@@ -163,8 +152,8 @@ export function clusterDevicesByUsage(deviceData) {
       categories.medium_consumption.push(device);
     }
 
-    // Detektiraj vampire devices (mali power ali uvijek ON)
-    if (device.avg_power < 50 && device.uptime_percentage > 90) {
+    // Vampire devices: < ~50W (0.004 kWh/5-min interval) ali uvijek ON
+    if (device.avg_power < 0.005 && device.uptime_percentage > 90) {
       categories.vampire_devices.push(device);
     }
   });
@@ -198,12 +187,19 @@ export async function generateMLRecommendations(korisnikId, kucanstvoId, danaUna
     const [dailyConsumption] = await db.query(
       `SELECT
         datum,
-        SUM(daily_delta) as potrosnja_kwh
+        SUM(daily_kwh) as potrosnja_kwh
       FROM (
         SELECT
           DATE(m.datum_vrijeme) as datum,
           u.uredjaj_id,
-          MAX(m.vrijednost_kwh) - MIN(m.vrijednost_kwh) as daily_delta
+          COALESCE(
+            MAX(CASE WHEN m.tip_mjerenja = 'automatsko' THEN m.vrijednost_kwh END) -
+            MIN(CASE WHEN m.tip_mjerenja = 'automatsko' THEN m.vrijednost_kwh END),
+            0
+          ) + COALESCE(
+            SUM(CASE WHEN m.tip_mjerenja != 'automatsko' THEN m.vrijednost_kwh END),
+            0
+          ) as daily_kwh
         FROM mjerenje m
         JOIN uredjaj u ON m.uredjaj_id = u.uredjaj_id
         JOIN prostorija p ON u.prostorija_id = p.prostorija_id
@@ -215,17 +211,39 @@ export async function generateMLRecommendations(korisnikId, kucanstvoId, danaUna
       [kucanstvoId, datumOd]
     );
 
-    // 2. Dohvati hourly podatke za optimal usage times
+    // 2. Dohvati prosječnu potrošnju po satu dana (0-23)
     const [hourlyData] = await db.query(
       `SELECT
-        m.datum_vrijeme,
-        SUM(m.vrijednost_kwh) as potrosnja_kwh
-      FROM mjerenje m
-      JOIN uredjaj u ON m.uredjaj_id = u.uredjaj_id
-      JOIN prostorija p ON u.prostorija_id = p.prostorija_id
-      WHERE p.kucanstvo_id = ? AND m.datum_vrijeme >= ? AND m.validno = 1
-      GROUP BY m.datum_vrijeme
-      ORDER BY m.datum_vrijeme ASC`,
+        h.hour,
+        AVG(h.hour_total) as avg_consumption
+      FROM (
+        SELECT
+          dh.datum,
+          dh.hour,
+          SUM(dh.hourly_kwh) as hour_total
+        FROM (
+          SELECT
+            DATE(m.datum_vrijeme)  AS datum,
+            HOUR(m.datum_vrijeme)  AS hour,
+            u.uredjaj_id,
+            COALESCE(
+              MAX(CASE WHEN m.tip_mjerenja = 'automatsko' THEN m.vrijednost_kwh END) -
+              MIN(CASE WHEN m.tip_mjerenja = 'automatsko' THEN m.vrijednost_kwh END),
+              0
+            ) + COALESCE(
+              SUM(CASE WHEN m.tip_mjerenja != 'automatsko' THEN m.vrijednost_kwh END),
+              0
+            ) AS hourly_kwh
+          FROM mjerenje m
+          JOIN uredjaj u  ON m.uredjaj_id  = u.uredjaj_id
+          JOIN prostorija p ON u.prostorija_id = p.prostorija_id
+          WHERE p.kucanstvo_id = ? AND m.datum_vrijeme >= ? AND m.validno = 1
+          GROUP BY DATE(m.datum_vrijeme), HOUR(m.datum_vrijeme), u.uredjaj_id
+        ) dh
+        GROUP BY dh.datum, dh.hour
+      ) h
+      GROUP BY h.hour
+      ORDER BY h.hour`,
       [kucanstvoId, datumOd]
     );
 
@@ -235,8 +253,19 @@ export async function generateMLRecommendations(korisnikId, kucanstvoId, danaUna
         u.uredjaj_id,
         u.naziv,
         u.tip_uredjaja,
-        SUM(m.vrijednost_kwh) as total_consumption,
-        AVG(m.vrijednost_kwh) as avg_power,
+        COALESCE(
+          MAX(CASE WHEN m.tip_mjerenja = 'automatsko' THEN m.vrijednost_kwh END) -
+          MIN(CASE WHEN m.tip_mjerenja = 'automatsko' THEN m.vrijednost_kwh END),
+          0
+        ) + COALESCE(
+          SUM(CASE WHEN m.tip_mjerenja != 'automatsko' THEN m.vrijednost_kwh END),
+          0
+        ) as total_consumption,
+        COALESCE(
+          MAX(CASE WHEN m.tip_mjerenja = 'automatsko' THEN m.vrijednost_kwh END) -
+          MIN(CASE WHEN m.tip_mjerenja = 'automatsko' THEN m.vrijednost_kwh END),
+          0
+        ) / NULLIF(COUNT(CASE WHEN m.tip_mjerenja = 'automatsko' THEN 1 END), 0) as avg_power,
         COUNT(m.mjerenje_id) as measurement_count
       FROM mjerenje m
       JOIN uredjaj u ON m.uredjaj_id = u.uredjaj_id
@@ -312,49 +341,36 @@ export async function generateMLRecommendations(korisnikId, kucanstvoId, danaUna
     }
 
     // === OPTIMAL USAGE TIMES ===
-    if (hourlyData.length >= 24) {
-      const optimalTimes = identifyOptimalUsageTimes(hourlyData.map(d => ({
-        datum_vrijeme: d.datum_vrijeme,
-        potrosnja_kwh: parseFloat(d.potrosnja_kwh || 0)
-      })));
+    if (hourlyData.length >= 6) {
+      const optimalTimes = identifyOptimalUsageTimes(
+        hourlyData.map(d => ({
+          hour: d.hour,
+          avg_consumption: parseFloat(d.avg_consumption || 0)
+        }))
+      );
 
       if (optimalTimes) {
-        // Samo prikaži preporuku ako ima dovoljno raznolikosti u podacima
         const highestAvg = optimalTimes.highestConsumptionHours[0]?.avg_consumption || 0;
-        const lowestAvg = optimalTimes.lowestConsumptionHours[0]?.avg_consumption || 0;
+        const lowestAvg  = optimalTimes.lowestConsumptionHours[0]?.avg_consumption  || 0;
         const difference = highestAvg - lowestAvg;
 
-        // Prikaži samo ako razlika između najviše i najniže je značajna (>20%)
-        if (difference > highestAvg * 0.2 && optimalTimes.highestConsumptionHours.length >= 3) {
-          const peakHours = optimalTimes.highestConsumptionHours.slice(0, 3).map(h => `${h.hour}:00`).join(', ');
+        if (difference > highestAvg * 0.2) {
+          const peakHours    = optimalTimes.highestConsumptionHours.slice(0, 3).map(h => `${h.hour}:00`).join(', ');
           const offPeakHours = optimalTimes.lowestConsumptionHours.slice(0, 3).map(h => `${h.hour}:00`).join(', ');
+          const savingPct    = ((difference / highestAvg) * 100).toFixed(0);
 
           recommendations.push({
             type: 'timing',
             priority: 'medium',
             icon: '⏰',
             title: 'Optimizirajte Vrijeme Korištenja Uređaja',
-            description: `Vaša najviša potrošnja je u satima: ${peakHours} (prosječno ${highestAvg.toFixed(2)} kWh/h). Izbjegavajte pokretanje perilice, sušilice i drugih zahtjevnih uređaja u tim satima. Najbolje vrijeme: ${offPeakHours} (prosječno ${lowestAvg.toFixed(2)} kWh/h).`,
+            description: `Vaša potrošnja je najveća oko ${peakHours} (prosjek ${highestAvg.toFixed(3)} kWh/h). Prebacite perilicu, sušilicu i slično na ${offPeakHours} kada je potrošnja najniža (${lowestAvg.toFixed(3)} kWh/h).`,
             details: [
               `⚠️ Špica: ${peakHours}`,
               `✅ Optimalno: ${offPeakHours}`,
-              `Ušteda raspoređivanjem: ~${((difference / highestAvg) * 100).toFixed(0)}%`
+              `Potencijalna ušteda preraspoređivanjem: ~${savingPct}%`
             ],
             potentialSavings: '10-15% mjesečno'
-          });
-        } else {
-          // Ako nema dovoljno raznolikosti, daj generičku preporuku
-          recommendations.push({
-            type: 'timing',
-            priority: 'low',
-            icon: '⏰',
-            title: 'Rasporedite Potrošnju',
-            description: `Vaša potrošnja je relativno ujednačena kroz dan. Razmislite o korištenju perilice i sušilice noću ili rano ujutro kada je električna energija najčešće jeftinija.`,
-            details: [
-              'Noćna tarifa: 22:00 - 06:00',
-              'Dnevna tarifa: 06:00 - 22:00'
-            ],
-            potentialSavings: '5-10% mjesečno'
           });
         }
       }
@@ -384,7 +400,7 @@ export async function generateMLRecommendations(korisnikId, kucanstvoId, danaUna
             priority: 'high',
             icon: '🔥',
             title: 'Energetski Zahtjevni Uređaji',
-            description: `${clusters.high_consumption.length} uređaja troši većinu energije. Top potrošač: ${topDevice.naziv} (${topDevice.total_consumption.toFixed(2)} kWh).`,
+            description: `${clusters.high_consumption.length} ${clusters.high_consumption.length === 1 ? 'uređaj troši' : 'uređaja troše'} većinu energije. Top potrošač: ${topDevice.naziv} (${topDevice.total_consumption.toFixed(2)} kWh).`,
             details: clusters.high_consumption.slice(0, 3).map(d => `${d.naziv}: ${d.total_consumption.toFixed(2)} kWh`),
             potentialSavings: '15-20% mjesečno'
           });

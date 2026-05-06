@@ -401,94 +401,98 @@ const Devices = () => {
         </div>
       ) : (
         <div className="devices-grid">
-          {filteredDevices.map((device) => (
-            <div key={device.id_uredjaj || device.id} className="device-card">
-              <div className="device-card-header">
-                <div className="device-icon-large">{getDeviceIcon(device.tip_uredjaja)}</div>
-                <div className="device-actions-top">
-                  <button
-                    className="btn-icon"
-                    onClick={() => openEditModal(device)}
-                    title="Uredi"
-                  >
-                    ✏️
-                  </button>
-                  <button
-                    className="btn-icon"
-                    onClick={() => handleDeleteDevice(device)}
-                    title="Obriši"
-                  >
-                    🗑️
-                  </button>
-                </div>
-              </div>
-              <div className="device-card-body">
-                <h3>{device.naziv}</h3>
-                <p className="device-type">{getDeviceLabel(device.tip_uredjaja)}</p>
+          {filteredDevices.map((device) => {
+            const deviceId = device.id_uredjaj || device.id;
+            const measurement = deviceMeasurements[deviceId];
+            return (
+              <div key={deviceId} className="device-card">
 
-                {/* Prikaz podataka o potrosnji */}
-                {deviceMeasurements[device.id_uredjaj || device.id] && (
-                  <div className="device-consumption">
-                    <div className="consumption-main">
-                      <span className="consumption-value">
-                        {deviceMeasurements[device.id_uredjaj || device.id].vrijednost_kwh.toFixed(2)}
+                {/* Top row: type badge + edit/delete */}
+                <div className="device-card-top">
+                  <span className="device-type-badge">{getDeviceLabel(device.tip_uredjaja)}</span>
+                  <div className="device-card-actions">
+                    <button className="btn-icon-sm" onClick={() => openEditModal(device)} title="Uredi">✎</button>
+                    <button className="btn-icon-sm danger" onClick={() => handleDeleteDevice(device)} title="Obriši">✕</button>
+                  </div>
+                </div>
+
+                {/* Body */}
+                <div className="device-card-body">
+                  <h3 className="device-name">{device.naziv}</h3>
+
+                  {/* Live consumption */}
+                  {measurement && (
+                    <div className="device-consumption">
+                      <div className="consumption-row">
+                        {measurement.snaga_w != null && (
+                          <div className="consumption-item">
+                            <span className="consumption-number">{measurement.snaga_w.toFixed(0)}</span>
+                            <span className="consumption-unit">W</span>
+                          </div>
+                        )}
+                        {measurement.snaga_w != null && <div className="consumption-separator" />}
+                        <div className="consumption-item">
+                          <span className="consumption-number">{measurement.vrijednost_kwh.toFixed(3)}</span>
+                          <span className="consumption-unit">kWh</span>
+                        </div>
+                      </div>
+                      <div className="consumption-time">
+                        Zadnje mjerenje: {new Date(measurement.datum_vrijeme).toLocaleString('hr-HR')}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Meta info */}
+                  <div className="device-meta">
+                    <div className="device-meta-row">
+                      <span className="meta-label">Kućanstvo</span>
+                      <span className="meta-value">{device.kucanstvo_naziv}</span>
+                    </div>
+                    <div className="device-meta-row">
+                      <span className="meta-label">Prostorija</span>
+                      <span className="meta-value">{device.prostorija_naziv || device.prostorija?.naziv || '—'}</span>
+                    </div>
+                    {device.nominalna_snaga && (
+                      <div className="device-meta-row">
+                        <span className="meta-label">Nominalna snaga</span>
+                        <span className="meta-value">{device.nominalna_snaga} W</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Plug status */}
+                  {device.pametni_utikac && (
+                    <div className="device-plug-status">
+                      <span className={`plug-badge ${device.pametni_utikac.status}`}>
+                        {device.pametni_utikac.status === 'aktivan' ? 'Utičnica aktivna' :
+                         device.pametni_utikac.status === 'kvar' ? 'Utičnica — kvar' : 'Utičnica neaktivna'}
                       </span>
-                      <span className="consumption-unit">kWh</span>
                     </div>
-                    <div className="consumption-time">
-                      Zadnje mjerenje:{' '}
-                      {new Date(deviceMeasurements[device.id_uredjaj || device.id].datum_vrijeme).toLocaleString('hr-HR')}
-                    </div>
-                  </div>
-                )}
-
-                <div className="device-info">
-                  <span className="info-label">Kućanstvo:</span>
-                  <span className="info-value">{device.kucanstvo_naziv}</span>
+                  )}
                 </div>
-                <div className="device-info">
-                  <span className="info-label">Prostorija:</span>
-                  <span className="info-value">
-                    {device.prostorija_naziv || device.prostorija?.naziv || '-'}
-                  </span>
-                </div>
-                {device.nominalna_snaga && (
-                  <div className="device-info">
-                    <span className="info-label">Snaga:</span>
-                    <span className="info-value">{device.nominalna_snaga} W</span>
-                  </div>
-                )}
-                {device.pametni_utikac && (
-                  <div className="device-plug-status">
-                    <span className={`plug-badge ${device.pametni_utikac.status}`}>
-                      🔌 {device.pametni_utikac.status === 'aktivan' ? 'Aktivna' : 'Neaktivna'}
-                    </span>
-                  </div>
-                )}
 
-                {/* Gumbi za upravljanje */}
-                <div className="device-actions">
+                {/* Footer: action buttons */}
+                <div className="device-card-footer">
                   <button
-                    className="btn-secondary btn-sm"
+                    className="btn-device"
                     onClick={() => openPlugModal(device)}
-                    title={device.pametni_utikac ? 'Uredi utičnicu' : 'Dodaj utičnicu'}
                   >
-                    {device.pametni_utikac ? '🔌 Uredi utičnicu' : '🔌 Dodaj utičnicu'}
+                    {device.pametni_utikac ? 'Uredi utičnicu' : 'Dodaj utičnicu'}
                   </button>
-
                   {device.pametni_utikac && (
                     <button
-                      className="btn-primary btn-sm"
+                      className="btn-device primary"
                       onClick={() => handleCollectData(device)}
-                      disabled={collectingData[device.id_uredjaj || device.id]}
+                      disabled={collectingData[deviceId]}
                     >
-                      {collectingData[device.id_uredjaj || device.id] ? '⏳ Prikupljam...' : '🔄 Osvježi podatke'}
+                      {collectingData[deviceId] ? 'Prikupljam...' : 'Osvježi podatke'}
                     </button>
                   )}
                 </div>
+
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
@@ -647,25 +651,31 @@ const Devices = () => {
       <Modal
         isOpen={isPlugModalOpen}
         onClose={() => setIsPlugModalOpen(false)}
-        title={selectedDevice?.pametni_utikac ? 'Uredi pametnu utičnicu' : 'Dodaj pametnu utičnicu'}
+        title={selectedDevice?.pametni_utikac ? `Uredi utičnicu — ${selectedDevice?.naziv}` : `Dodaj utičnicu — ${selectedDevice?.naziv}`}
       >
         <form onSubmit={handleSavePlug} className="device-form">
-          <p className="modal-description">
-            Povežite Shelly pametnu utičnicu za automatsko praćenje potrošnje uređaja.
-          </p>
-
-          <div className="form-group">
-            <label htmlFor="serijski_broj">Serijski broj *</label>
-            <input
-              type="text"
-              id="serijski_broj"
-              value={plugForm.serijski_broj}
-              onChange={(e) => setPlugForm({ ...plugForm, serijski_broj: e.target.value })}
-              required
-              placeholder="ShellyPlug-001"
-            />
-            <small>Jedinstveni identifikator utičnice</small>
-          </div>
+          {/* Show existing data when editing */}
+          {selectedDevice?.pametni_utikac && (
+            <div className="plug-current-data">
+              <h4>Trenutni podaci</h4>
+              <div className="plug-current-row">
+                <span>IP adresa</span>
+                <span>{selectedDevice.pametni_utikac.ip_adresa}</span>
+              </div>
+              <div className="plug-current-row">
+                <span>Serijski broj</span>
+                <span>{selectedDevice.pametni_utikac.serijski_broj}</span>
+              </div>
+              <div className="plug-current-row">
+                <span>Model</span>
+                <span>{selectedDevice.pametni_utikac.model || 'Plug S Gen3'}</span>
+              </div>
+              <div className="plug-current-row">
+                <span>Status</span>
+                <span>{selectedDevice.pametni_utikac.status}</span>
+              </div>
+            </div>
+          )}
 
           <div className="form-group">
             <label htmlFor="ip_adresa">IP adresa *</label>
@@ -675,29 +685,41 @@ const Devices = () => {
               value={plugForm.ip_adresa}
               onChange={(e) => setPlugForm({ ...plugForm, ip_adresa: e.target.value })}
               required
-              placeholder="192.168.1.71"
+              placeholder="192.168.1.100"
               pattern="^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$"
             />
-            <small>IP adresa utičnice u lokalnoj mreži</small>
+            <small>IP adresa utičnice u lokalnoj mreži (pronađite je u router-u)</small>
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="serijski_broj">Serijski broj *</label>
+            <input
+              type="text"
+              id="serijski_broj"
+              value={plugForm.serijski_broj}
+              onChange={(e) => setPlugForm({ ...plugForm, serijski_broj: e.target.value })}
+              required
+              placeholder="ShellyPlugS3-AABBCC"
+            />
+            <small>Nalazi se na naljepnici na uređaju</small>
           </div>
 
           <div className="form-row">
             <div className="form-group">
-              <label htmlFor="proizvodjac">Proizvođač</label>
+              <label htmlFor="plug_proizvodjac">Proizvođač</label>
               <input
                 type="text"
-                id="proizvodjac"
+                id="plug_proizvodjac"
                 value={plugForm.proizvodjac}
                 onChange={(e) => setPlugForm({ ...plugForm, proizvodjac: e.target.value })}
                 placeholder="Shelly"
               />
             </div>
-
             <div className="form-group">
-              <label htmlFor="model">Model</label>
+              <label htmlFor="plug_model">Model</label>
               <input
                 type="text"
-                id="model"
+                id="plug_model"
                 value={plugForm.model}
                 onChange={(e) => setPlugForm({ ...plugForm, model: e.target.value })}
                 placeholder="Plug S Gen3"
@@ -705,20 +727,17 @@ const Devices = () => {
             </div>
           </div>
 
-          <div className="info-box">
-            <strong>💡 Dostupne utičnice:</strong>
-            <ul>
-              <li>Uređaji srednje potrošnje: 192.168.1.71</li>
-              <li>Uređaji visoke potrošnje: 192.168.1.244</li>
-              <li>Uređaji niske potrošnje: 192.168.1.166</li>
-            </ul>
+          <div className="plug-ip-hint">
+            <strong>Kako pronaći IP adresu?</strong>
+            Otvorite router (192.168.1.1) → popis spojenih uređaja → potražite uređaj koji počinje s "Shelly".
+            Alternativno: prijavite se u Shelly aplikaciju → Device info → Local IP.
           </div>
 
           <div className="form-actions">
-            <button type="button" className="btn-secondary" onClick={() => setIsPlugModalOpen(false)}>
+            <button type="button" className="btn btn-secondary" onClick={() => setIsPlugModalOpen(false)}>
               Odustani
             </button>
-            <button type="submit" className="btn-primary">
+            <button type="submit" className="btn btn-primary">
               {selectedDevice?.pametni_utikac ? 'Spremi promjene' : 'Dodaj utičnicu'}
             </button>
           </div>

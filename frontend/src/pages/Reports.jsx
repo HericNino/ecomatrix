@@ -23,6 +23,23 @@ import './Reports.css';
 
 const COLORS = ['#2563eb', '#3b82f6', '#60a5fa', '#93c5fd', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
 
+// jsPDF (Helvetica) ne podrzava dijakritike — zamjena s ASCII ekvivalentima
+const lat = (s) => String(s ?? '')
+  .replace(/[čć]/g, 'c').replace(/[ČĆ]/g, 'C')
+  .replace(/š/g, 's').replace(/Š/g, 'S')
+  .replace(/ž/g, 'z').replace(/Ž/g, 'Z')
+  .replace(/đ/g, 'd').replace(/Đ/g, 'D');
+
+// Formatiraj datum iz ISO stringa ili MySQL DATE stringa u DD.MM.YYYY
+const fmtDatum = (d) => {
+  if (!d) return '';
+  const dt = new Date(d);
+  if (isNaN(dt)) return String(d);
+  const dd = String(dt.getDate()).padStart(2, '0');
+  const mm = String(dt.getMonth() + 1).padStart(2, '0');
+  return `${dd}.${mm}.${dt.getFullYear()}`;
+};
+
 const Reports = () => {
   const reportRef = useRef(null);
   const [households, setHouseholds] = useState([]);
@@ -180,12 +197,12 @@ const Reports = () => {
       // Header
       doc.setFontSize(18);
       doc.setFont('helvetica', 'bold');
-      doc.text('Izvještaj Potrošnje Energije', pageWidth / 2, yPos, { align: 'center' });
+      doc.text('Izvjestaj Potrosnje Energije', pageWidth / 2, yPos, { align: 'center' });
 
       yPos += 10;
       doc.setFontSize(12);
       doc.setFont('helvetica', 'normal');
-      doc.text(selectedHouseholdName, pageWidth / 2, yPos, { align: 'center' });
+      doc.text(lat(selectedHouseholdName), pageWidth / 2, yPos, { align: 'center' });
 
       yPos += 6;
       doc.setFontSize(10);
@@ -194,20 +211,20 @@ const Reports = () => {
 
       yPos += 15;
 
-      // Sažetak
+      // Sazetak
       doc.setFontSize(14);
       doc.setFont('helvetica', 'bold');
-      doc.text('Sažetak', 14, yPos);
+      doc.text('Sazetak', 14, yPos);
       yPos += 8;
 
       doc.autoTable({
         startY: yPos,
         head: [['Metrika', 'Vrijednost']],
         body: [
-          ['Ukupna potrošnja', `${reportData.summary.ukupna_potrosnja_kwh} kWh`],
-          ['Prosječna dnevna', `${reportData.summary.prosjecna_dnevna_kwh} kWh`],
-          ['Broj uređaja', reportData.summary.broj_uredjaja],
-          ['Broj dana', reportData.summary.broj_dana],
+          ['Ukupna potrosnja', `${reportData.summary.ukupna_potrosnja_kwh} kWh`],
+          ['Prosjecna dnevna', `${reportData.summary.prosjecna_dnevna_kwh} kWh`],
+          ['Broj uredjaja', reportData.summary.broj_uredjaja],
+          ['Broj dana u rasponu', reportData.summary.broj_dana],
         ],
         theme: 'grid',
         headStyles: { fillColor: [37, 99, 235], textColor: 255, fontStyle: 'bold' },
@@ -217,23 +234,23 @@ const Reports = () => {
 
       yPos = doc.lastAutoTable.finalY + 10;
 
-      // Top 10 potrošača
+      // Top 10 potrosaca
       doc.setFontSize(14);
       doc.setFont('helvetica', 'bold');
-      doc.text('Top 10 Potrošača', 14, yPos);
+      doc.text('Top 10 potrosaca', 14, yPos);
       yPos += 6;
 
       const topDevicesData = reportData.topDevices.slice(0, 10).map((device, idx) => [
         idx + 1,
-        device.naziv,
-        device.tip_uredjaja,
-        device.prostorija,
+        lat(device.naziv),
+        lat(device.tip_uredjaja),
+        lat(device.prostorija),
         `${device.potrosnja_kwh} kWh`,
       ]);
 
       doc.autoTable({
         startY: yPos,
-        head: [['#', 'Uređaj', 'Tip', 'Prostorija', 'Potrošnja']],
+        head: [['#', 'Uredjaj', 'Tip', 'Prostorija', 'Potrosnja']],
         body: topDevicesData,
         theme: 'striped',
         headStyles: { fillColor: [37, 99, 235], textColor: 255, fontStyle: 'bold' },
@@ -247,60 +264,50 @@ const Reports = () => {
 
       yPos = doc.lastAutoTable.finalY + 10;
 
-      // Provjeri da li treba nova stranica
-      if (yPos > 250) {
-        doc.addPage();
-        yPos = 20;
-      }
+      if (yPos > 250) { doc.addPage(); yPos = 20; }
 
-      // Potrošnja po prostorijama
+      // Potrosnja po prostorijama
       doc.setFontSize(14);
       doc.setFont('helvetica', 'bold');
-      doc.text('Potrošnja po Prostorijama', 14, yPos);
+      doc.text('Potrosnja po Prostorijama', 14, yPos);
       yPos += 6;
 
       const roomData = reportData.byRoom.map((room) => [
-        room.prostorija,
-        room.tip_prostorije || 'N/A',
+        lat(room.prostorija),
+        lat(room.tip_prostorije) || 'N/A',
         `${room.potrosnja_kwh} kWh`,
       ]);
 
       doc.autoTable({
         startY: yPos,
-        head: [['Prostorija', 'Tip', 'Potrošnja']],
+        head: [['Prostorija', 'Tip', 'Potrosnja']],
         body: roomData,
         theme: 'grid',
         headStyles: { fillColor: [37, 99, 235], textColor: 255, fontStyle: 'bold' },
         margin: { left: 14, right: 14 },
         styles: { fontSize: 10 },
-        columnStyles: {
-          2: { halign: 'right' },
-        },
+        columnStyles: { 2: { halign: 'right' } },
       });
 
       yPos = doc.lastAutoTable.finalY + 10;
 
-      // Provjeri da li treba nova stranica
-      if (yPos > 250) {
-        doc.addPage();
-        yPos = 20;
-      }
+      if (yPos > 250) { doc.addPage(); yPos = 20; }
 
-      // Potrošnja po tipu uređaja
+      // Potrosnja po tipu uredjaja
       doc.setFontSize(14);
       doc.setFont('helvetica', 'bold');
-      doc.text('Potrošnja po Tipu Uređaja', 14, yPos);
+      doc.text('Potrosnja po Tipu Uredjaja', 14, yPos);
       yPos += 6;
 
       const typeData = reportData.byDeviceType.map((type) => [
-        type.tip_uredjaja,
+        lat(type.tip_uredjaja),
         type.broj_uredjaja,
         `${type.potrosnja_kwh} kWh`,
       ]);
 
       doc.autoTable({
         startY: yPos,
-        head: [['Tip Uređaja', 'Broj Uređaja', 'Potrošnja']],
+        head: [['Tip Uredjaja', 'Broj Uredjaja', 'Potrosnja']],
         body: typeData,
         theme: 'grid',
         headStyles: { fillColor: [37, 99, 235], textColor: 255, fontStyle: 'bold' },
@@ -325,7 +332,7 @@ const Reports = () => {
           { align: 'center' }
         );
         doc.text(
-          'EcoMatrix - Sustav za praćenje potrošnje energije',
+          'EcoMetrix - Sustav za pracenje potrosnje energije',
           pageWidth / 2,
           doc.internal.pageSize.getHeight() - 6,
           { align: 'center' }
@@ -333,7 +340,7 @@ const Reports = () => {
       }
 
       // Spremi PDF
-      doc.save(`izvjestaj_${selectedHouseholdName}_${filters.datumOd}_${filters.datumDo}.pdf`);
+      doc.save(`izvjestaj_${lat(selectedHouseholdName)}_${filters.datumOd}_${filters.datumDo}.pdf`);
       toast.success('PDF uspješno exportan!', { id: 'pdf-export' });
     } catch (error) {
       console.error('PDF export error:', error);
@@ -344,19 +351,68 @@ const Reports = () => {
   const exportToExcel = () => {
     if (!reportData) return;
 
-    // Jednostavan CSV export (moze se koristiti kao Excel)
-    let csv = 'Datum,Potrošnja (kWh)\n';
+    const householdName = households.find(h => h.id_kucanstvo === selectedHousehold)?.naziv || '';
+    const sep = ';'; // europski Excel koristi ; kao separator
+    const lines = [];
+
+    // Naslov
+    lines.push(`EcoMetrix - Izvjestaj potrosnje energije`);
+    lines.push(`Kucanstvo${sep}${householdName}`);
+    lines.push(`Razdoblje${sep}${filters.datumOd} - ${filters.datumDo}`);
+    lines.push(`Broj dana${sep}${reportData.summary.broj_dana}`);
+    lines.push('');
+
+    // Sazetak
+    lines.push('SAZETAK');
+    lines.push(`Metrika${sep}Vrijednost`);
+    lines.push(`Ukupna potrosnja (kWh)${sep}${reportData.summary.ukupna_potrosnja_kwh}`);
+    lines.push(`Prosjecna dnevna (kWh)${sep}${reportData.summary.prosjecna_dnevna_kwh}`);
+    lines.push(`Broj uredjaja${sep}${reportData.summary.broj_uredjaja}`);
+    lines.push(`Broj dana${sep}${reportData.summary.broj_dana}`);
+    lines.push('');
+
+    // Vremenska serija
+    lines.push('POTROSNJA KROZ VRIJEME');
+    lines.push(`Datum${sep}Potrosnja (kWh)`);
     reportData.timeSeries.forEach(item => {
-      csv += `${item.datum},${item.potrosnja_kwh}\n`;
+      lines.push(`${fmtDatum(item.datum)}${sep}${item.potrosnja_kwh}`);
+    });
+    lines.push('');
+
+    // Top uredjaji
+    lines.push('TOP UREDJAJI');
+    lines.push(`#${sep}Uredjaj${sep}Tip${sep}Prostorija${sep}Potrosnja (kWh)`);
+    reportData.topDevices.forEach((device, idx) => {
+      lines.push(`${idx + 1}${sep}${device.naziv}${sep}${device.tip_uredjaja}${sep}${device.prostorija}${sep}${device.potrosnja_kwh}`);
+    });
+    lines.push('');
+
+    // Po prostorijama
+    lines.push('PO PROSTORIJAMA');
+    lines.push(`Prostorija${sep}Tip${sep}Potrosnja (kWh)`);
+    reportData.byRoom.forEach(room => {
+      lines.push(`${room.prostorija}${sep}${room.tip_prostorije || ''}${sep}${room.potrosnja_kwh}`);
+    });
+    lines.push('');
+
+    // Po tipu uredjaja
+    lines.push('PO TIPU UREDJAJA');
+    lines.push(`Tip${sep}Broj uredjaja${sep}Potrosnja (kWh)`);
+    reportData.byDeviceType.forEach(type => {
+      lines.push(`${type.tip_uredjaja}${sep}${type.broj_uredjaja}${sep}${type.potrosnja_kwh}`);
     });
 
-    const blob = new Blob([csv], { type: 'text/csv' });
+    // UTF-8 BOM osigurava da Excel pravilno otvori dijakritike
+    const BOM = '﻿';
+    const csv = BOM + lines.join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = window.URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `izvjestaj_${filters.datumOd}_${filters.datumDo}.csv`;
+    link.download = `izvjestaj_${householdName.replace(/\s+/g, '_')}_${filters.datumOd}_${filters.datumDo}.csv`;
     link.click();
-    toast.success('Izvještaj exportan');
+    window.URL.revokeObjectURL(url);
+    toast.success('Izvještaj exportan kao CSV');
   };
 
   if (households.length === 0) {
@@ -506,7 +562,15 @@ const Reports = () => {
                   <ResponsiveContainer width="100%" height={350}>
                     <LineChart data={reportData.timeSeries}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                      <XAxis dataKey="datum" stroke="#6b7280" style={{ fontSize: '12px' }} />
+                      <XAxis
+                        dataKey="datum"
+                        stroke="#6b7280"
+                        style={{ fontSize: '12px' }}
+                        tickFormatter={(d) => {
+                          const dt = new Date(d);
+                          return isNaN(dt) ? d : `${String(dt.getDate()).padStart(2,'0')}.${String(dt.getMonth()+1).padStart(2,'0')}.`;
+                        }}
+                      />
                       <YAxis stroke="#6b7280" style={{ fontSize: '12px' }} />
                       <Tooltip
                         contentStyle={{
@@ -515,6 +579,10 @@ const Reports = () => {
                           borderRadius: '8px'
                         }}
                         formatter={(value) => [`${value} kWh`, 'Potrošnja']}
+                        labelFormatter={(d) => {
+                          const dt = new Date(d);
+                          return isNaN(dt) ? d : dt.toLocaleDateString('hr-HR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+                        }}
                       />
                       <Legend />
                       <Line
@@ -564,18 +632,31 @@ const Reports = () => {
                         <Pie
                           data={reportData.byRoom}
                           cx="50%"
-                          cy="50%"
+                          cy="40%"
                           labelLine={false}
-                          label={(entry) => `${entry.prostorija}: ${entry.potrosnja_kwh} kWh`}
-                          outerRadius={80}
+                          label={({ cx, cy, midAngle, innerRadius, outerRadius, percent }) => {
+                            if (percent < 0.05) return null;
+                            const RADIAN = Math.PI / 180;
+                            const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
+                            const x = cx + radius * Math.cos(-midAngle * RADIAN);
+                            const y = cy + radius * Math.sin(-midAngle * RADIAN);
+                            return (
+                              <text x={x} y={y} fill="white" textAnchor="middle" dominantBaseline="central" fontSize={12} fontWeight={600}>
+                                {`${(percent * 100).toFixed(0)}%`}
+                              </text>
+                            );
+                          }}
+                          outerRadius={100}
                           fill="#8884d8"
                           dataKey="potrosnja_kwh"
+                          nameKey="prostorija"
                         >
                           {reportData.byRoom.map((entry, index) => (
                             <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                           ))}
                         </Pie>
-                        <Tooltip formatter={(value) => `${value} kWh`} />
+                        <Tooltip formatter={(value, name) => [`${value} kWh`, name]} />
+                        <Legend layout="horizontal" verticalAlign="bottom" align="center" wrapperStyle={{ fontSize: '12px', paddingTop: '8px' }} />
                       </PieChart>
                     </ResponsiveContainer>
                   </div>
@@ -589,18 +670,31 @@ const Reports = () => {
                         <Pie
                           data={reportData.byDeviceType}
                           cx="50%"
-                          cy="50%"
+                          cy="40%"
                           labelLine={false}
-                          label={(entry) => `${entry.tip_uredjaja}: ${entry.potrosnja_kwh} kWh`}
-                          outerRadius={80}
+                          label={({ cx, cy, midAngle, innerRadius, outerRadius, percent }) => {
+                            if (percent < 0.05) return null;
+                            const RADIAN = Math.PI / 180;
+                            const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
+                            const x = cx + radius * Math.cos(-midAngle * RADIAN);
+                            const y = cy + radius * Math.sin(-midAngle * RADIAN);
+                            return (
+                              <text x={x} y={y} fill="white" textAnchor="middle" dominantBaseline="central" fontSize={12} fontWeight={600}>
+                                {`${(percent * 100).toFixed(0)}%`}
+                              </text>
+                            );
+                          }}
+                          outerRadius={100}
                           fill="#8884d8"
                           dataKey="potrosnja_kwh"
+                          nameKey="tip_uredjaja"
                         >
                           {reportData.byDeviceType.map((entry, index) => (
                             <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                           ))}
                         </Pie>
-                        <Tooltip formatter={(value) => `${value} kWh`} />
+                        <Tooltip formatter={(value, name) => [`${value} kWh`, name]} />
+                        <Legend layout="horizontal" verticalAlign="bottom" align="center" wrapperStyle={{ fontSize: '12px', paddingTop: '8px' }} />
                       </PieChart>
                     </ResponsiveContainer>
                   </div>

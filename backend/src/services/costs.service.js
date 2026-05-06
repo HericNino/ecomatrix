@@ -57,16 +57,22 @@ export async function calculateCosts(korisnikId, kucanstvoId, datumOd, datumDo) 
   // Prvo dohvati cijenu struje
   const priceInfo = await getElectricityPrice(korisnikId, kucanstvoId);
 
-  // Dohvati potrosnju po uredjajima - koristimo MIN/MAX jer su mjerenja kumulativna
+  // automatsko (Shelly): kumulativni brojac → MAX-MIN
+  // procjena/rucno: dnevni iznos → SUM
   const [devices] = await db.query(
     `SELECT
       u.uredjaj_id,
       u.naziv,
       u.tip_uredjaja,
       p.naziv AS prostorija,
-      MIN(m.vrijednost_kwh) as min_value,
-      MAX(m.vrijednost_kwh) as max_value,
-      MAX(m.vrijednost_kwh) - MIN(m.vrijednost_kwh) as potrosnja_kwh
+      COALESCE(
+        MAX(CASE WHEN m.tip_mjerenja = 'automatsko' THEN m.vrijednost_kwh END) -
+        MIN(CASE WHEN m.tip_mjerenja = 'automatsko' THEN m.vrijednost_kwh END),
+        0
+      ) + COALESCE(
+        SUM(CASE WHEN m.tip_mjerenja != 'automatsko' THEN m.vrijednost_kwh END),
+        0
+      ) as potrosnja_kwh
      FROM mjerenje m
      JOIN uredjaj u ON m.uredjaj_id = u.uredjaj_id
      JOIN prostorija p ON u.prostorija_id = p.prostorija_id
@@ -164,23 +170,27 @@ export async function getDailyCosts(korisnikId, kucanstvoId, danaUnazad = 30) {
   datumOd.setDate(datumOd.getDate() - danaUnazad);
 
   const [dailyData] = await db.query(
-    `SELECT
-      DATE(m.datum_vrijeme) as datum,
-      SUM(CASE
-        WHEN prev.vrijednost_kwh IS NOT NULL
-        THEN m.vrijednost_kwh - prev.vrijednost_kwh
-        ELSE 0
-      END) as potrosnja_kwh
-     FROM mjerenje m
-     LEFT JOIN mjerenje prev ON prev.uredjaj_id = m.uredjaj_id
-       AND prev.datum_vrijeme < m.datum_vrijeme
-       AND prev.datum_vrijeme >= DATE_SUB(m.datum_vrijeme, INTERVAL 1 DAY)
-     JOIN uredjaj u ON m.uredjaj_id = u.uredjaj_id
-     JOIN prostorija p ON u.prostorija_id = p.prostorija_id
-     WHERE p.kucanstvo_id = ?
-       AND m.datum_vrijeme >= ?
-       AND m.validno = 1
-     GROUP BY DATE(m.datum_vrijeme)
+    `SELECT datum, SUM(potrosnja_kwh) as potrosnja_kwh
+     FROM (
+       SELECT
+         DATE(m.datum_vrijeme) as datum,
+         COALESCE(
+           MAX(CASE WHEN m.tip_mjerenja = 'automatsko' THEN m.vrijednost_kwh END) -
+           MIN(CASE WHEN m.tip_mjerenja = 'automatsko' THEN m.vrijednost_kwh END),
+           0
+         ) + COALESCE(
+           SUM(CASE WHEN m.tip_mjerenja != 'automatsko' THEN m.vrijednost_kwh END),
+           0
+         ) as potrosnja_kwh
+       FROM mjerenje m
+       JOIN uredjaj u ON m.uredjaj_id = u.uredjaj_id
+       JOIN prostorija p ON u.prostorija_id = p.prostorija_id
+       WHERE p.kucanstvo_id = ?
+         AND m.datum_vrijeme >= ?
+         AND m.validno = 1
+       GROUP BY u.uredjaj_id, DATE(m.datum_vrijeme)
+     ) sub
+     GROUP BY datum
      ORDER BY datum ASC`,
     [kucanstvoId, datumOd]
   );

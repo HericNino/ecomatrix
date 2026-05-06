@@ -51,100 +51,116 @@ const Register = () => {
 
   return (
     <div className="auth-container">
-      <div className="auth-card">
-        <div className="auth-header">
-          <h1 className="auth-brand">EcoMetrix</h1>
-          <h2 className="auth-title">Kreiraj nalog</h2>
-          <p className="auth-subtitle">Započnite praćenje potrošnje energije</p>
+      <div className="auth-branding">
+        <div className="brand-top">
+          <div className="brand-logo-big">E</div>
+          <h2 className="brand-headline">Pratite potrošnju energije pametno</h2>
+          <p className="brand-sub">EcoMetrix vam omogućuje uvid u potrošnju svakog uređaja u vašem domu.</p>
         </div>
+        <div className="brand-features">
+          <div className="brand-feature"><span className="brand-feature-dot"></span>Praćenje u stvarnom vremenu</div>
+          <div className="brand-feature"><span className="brand-feature-dot"></span>Analiza troškova i ušteda</div>
+          <div className="brand-feature"><span className="brand-feature-dot"></span>Ciljevi i preporuke</div>
+          <div className="brand-feature"><span className="brand-feature-dot"></span>Izvještaji i usporedbe</div>
+        </div>
+      </div>
 
-        <form onSubmit={handleSubmit} className="auth-form">
-          <div className="form-row">
+      <div className="auth-form-panel">
+        <div className="auth-card">
+          <div className="auth-header">
+            <h1 className="auth-brand">EcoMetrix</h1>
+            <h2 className="auth-title">Kreiraj račun</h2>
+            <p className="auth-subtitle">Besplatno, bez kreditne kartice</p>
+          </div>
+
+          <form onSubmit={handleSubmit} className="auth-form">
+            <div className="form-row">
+              <div className="form-group">
+                <label htmlFor="ime" className="form-label">Ime</label>
+                <input
+                  type="text"
+                  id="ime"
+                  name="ime"
+                  value={formData.ime}
+                  onChange={handleChange}
+                  required
+                  placeholder="Ime"
+                  autoComplete="given-name"
+                  className="form-input"
+                />
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="prezime" className="form-label">Prezime</label>
+                <input
+                  type="text"
+                  id="prezime"
+                  name="prezime"
+                  value={formData.prezime}
+                  onChange={handleChange}
+                  required
+                  placeholder="Prezime"
+                  autoComplete="family-name"
+                  className="form-input"
+                />
+              </div>
+            </div>
+
             <div className="form-group">
-              <label htmlFor="ime" className="form-label">Ime</label>
+              <label htmlFor="email" className="form-label">Email adresa</label>
               <input
-                type="text"
-                id="ime"
-                name="ime"
-                value={formData.ime}
+                type="email"
+                id="email"
+                name="email"
+                value={formData.email}
                 onChange={handleChange}
                 required
-                placeholder="Ime"
-                autoComplete="given-name"
+                placeholder="ime@domena.com"
+                autoComplete="email"
                 className="form-input"
               />
             </div>
 
             <div className="form-group">
-              <label htmlFor="prezime" className="form-label">Prezime</label>
+              <label htmlFor="lozinka" className="form-label">Lozinka</label>
               <input
-                type="text"
-                id="prezime"
-                name="prezime"
-                value={formData.prezime}
+                type="password"
+                id="lozinka"
+                name="lozinka"
+                value={formData.lozinka}
                 onChange={handleChange}
                 required
-                placeholder="Prezime"
-                autoComplete="family-name"
+                placeholder="Minimum 6 znakova"
+                minLength={6}
+                autoComplete="new-password"
                 className="form-input"
               />
             </div>
+
+            <div className="form-group">
+              <label htmlFor="ponovi_lozinku" className="form-label">Potvrdi lozinku</label>
+              <input
+                type="password"
+                id="ponovi_lozinku"
+                name="ponovi_lozinku"
+                value={formData.ponovi_lozinku}
+                onChange={handleChange}
+                required
+                placeholder="Ponovite lozinku"
+                minLength={6}
+                autoComplete="new-password"
+                className="form-input"
+              />
+            </div>
+
+            <button type="submit" className="btn btn-primary btn-full" disabled={loading}>
+              {loading ? 'Kreiranje računa...' : 'Kreiraj račun'}
+            </button>
+          </form>
+
+          <div className="auth-footer">
+            Već imate račun? <Link to="/login" className="auth-link">Prijavite se</Link>
           </div>
-
-          <div className="form-group">
-            <label htmlFor="email" className="form-label">Email</label>
-            <input
-              type="email"
-              id="email"
-              name="email"
-              value={formData.email}
-              onChange={handleChange}
-              required
-              placeholder="ime@firma.com"
-              autoComplete="email"
-              className="form-input"
-            />
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="lozinka" className="form-label">Lozinka</label>
-            <input
-              type="password"
-              id="lozinka"
-              name="lozinka"
-              value={formData.lozinka}
-              onChange={handleChange}
-              required
-              placeholder="Minimum 6 znakova"
-              minLength={6}
-              autoComplete="new-password"
-              className="form-input"
-            />
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="ponovi_lozinku" className="form-label">Potvrdi lozinku</label>
-            <input
-              type="password"
-              id="ponovi_lozinku"
-              name="ponovi_lozinku"
-              value={formData.ponovi_lozinku}
-              onChange={handleChange}
-              required
-              placeholder="Ponovite lozinku"
-              minLength={6}
-              autoComplete="new-password"
-              className="form-input"
-            />
-          </div>
-
-          <button type="submit" className="btn btn-primary btn-full" disabled={loading}>
-            {loading ? 'Kreiranje naloga...' : 'Kreiraj nalog'}
-          </button>
-        </form>
-
-        <div className="auth-footer">
-          Već imate nalog? <Link to="/login" className="auth-link">Prijavite se</Link>
         </div>
       </div>
     </div>

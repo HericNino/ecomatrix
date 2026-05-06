@@ -46,12 +46,21 @@ export async function generateConsumptionReport(korisnikId, kucanstvoId, datumOd
       groupByClause = 'DATE(m.datum_vrijeme)';
   }
 
-  // Dohvati potrosnju grupirano po vremenu (koristimo MIN/MAX za svaki uredjaj, pa sumiramo)
+  // Dohvati potrosnju grupirano po vremenu
+  // automatsko (Shelly): kumulativni brojac → MAX-MIN po periodu
+  // procjena/rucno: dnevni iznos → SUM po periodu
   const [deviceConsumption] = await db.query(
     `SELECT
       u.uredjaj_id,
       ${groupByClause} as period,
-      MAX(m.vrijednost_kwh) - MIN(m.vrijednost_kwh) as potrosnja_kwh
+      COALESCE(
+        MAX(CASE WHEN m.tip_mjerenja = 'automatsko' THEN m.vrijednost_kwh END) -
+        MIN(CASE WHEN m.tip_mjerenja = 'automatsko' THEN m.vrijednost_kwh END),
+        0
+      ) + COALESCE(
+        SUM(CASE WHEN m.tip_mjerenja != 'automatsko' THEN m.vrijednost_kwh END),
+        0
+      ) as potrosnja_kwh
     FROM mjerenje m
     JOIN uredjaj u ON m.uredjaj_id = u.uredjaj_id
     JOIN prostorija p ON u.prostorija_id = p.prostorija_id
@@ -88,7 +97,14 @@ export async function generateConsumptionReport(korisnikId, kucanstvoId, datumOd
       u.naziv,
       u.tip_uredjaja,
       p.naziv as prostorija,
-      MAX(m.vrijednost_kwh) - MIN(m.vrijednost_kwh) as potrosnja_kwh
+      COALESCE(
+        MAX(CASE WHEN m.tip_mjerenja = 'automatsko' THEN m.vrijednost_kwh END) -
+        MIN(CASE WHEN m.tip_mjerenja = 'automatsko' THEN m.vrijednost_kwh END),
+        0
+      ) + COALESCE(
+        SUM(CASE WHEN m.tip_mjerenja != 'automatsko' THEN m.vrijednost_kwh END),
+        0
+      ) as potrosnja_kwh
     FROM mjerenje m
     JOIN uredjaj u ON m.uredjaj_id = u.uredjaj_id
     JOIN prostorija p ON u.prostorija_id = p.prostorija_id
@@ -109,7 +125,14 @@ export async function generateConsumptionReport(korisnikId, kucanstvoId, datumOd
       p.naziv as prostorija,
       p.tip as tip_prostorije,
       u.uredjaj_id,
-      MAX(m.vrijednost_kwh) - MIN(m.vrijednost_kwh) as potrosnja_kwh
+      COALESCE(
+        MAX(CASE WHEN m.tip_mjerenja = 'automatsko' THEN m.vrijednost_kwh END) -
+        MIN(CASE WHEN m.tip_mjerenja = 'automatsko' THEN m.vrijednost_kwh END),
+        0
+      ) + COALESCE(
+        SUM(CASE WHEN m.tip_mjerenja != 'automatsko' THEN m.vrijednost_kwh END),
+        0
+      ) as potrosnja_kwh
     FROM mjerenje m
     JOIN uredjaj u ON m.uredjaj_id = u.uredjaj_id
     JOIN prostorija p ON u.prostorija_id = p.prostorija_id
@@ -147,7 +170,14 @@ export async function generateConsumptionReport(korisnikId, kucanstvoId, datumOd
     `SELECT
       u.tip_uredjaja,
       u.uredjaj_id,
-      MAX(m.vrijednost_kwh) - MIN(m.vrijednost_kwh) as potrosnja_kwh
+      COALESCE(
+        MAX(CASE WHEN m.tip_mjerenja = 'automatsko' THEN m.vrijednost_kwh END) -
+        MIN(CASE WHEN m.tip_mjerenja = 'automatsko' THEN m.vrijednost_kwh END),
+        0
+      ) + COALESCE(
+        SUM(CASE WHEN m.tip_mjerenja != 'automatsko' THEN m.vrijednost_kwh END),
+        0
+      ) as potrosnja_kwh
     FROM mjerenje m
     JOIN uredjaj u ON m.uredjaj_id = u.uredjaj_id
     JOIN prostorija p ON u.prostorija_id = p.prostorija_id
@@ -184,7 +214,11 @@ export async function generateConsumptionReport(korisnikId, kucanstvoId, datumOd
 
   // Ukupna statistika
   const ukupnaPotrosnja = timeSeriesData.reduce((sum, item) => sum + parseFloat(item.potrosnja_kwh || 0), 0);
-  const prosjecnaDnevna = timeSeriesData.length > 0 ? ukupnaPotrosnja / timeSeriesData.length : 0;
+  // Kalendarski broj dana u odabranom rasponu (ne samo dani s mjerenjima)
+  const dStart = new Date(datumOd);
+  const dEnd   = new Date(datumDo);
+  const kalendarskiDani = Math.max(1, Math.round((dEnd - dStart) / (1000 * 60 * 60 * 24)) + 1);
+  const prosjecnaDnevna = kalendarskiDani > 0 ? ukupnaPotrosnja / kalendarskiDani : 0;
 
   return {
     period: {
@@ -196,7 +230,7 @@ export async function generateConsumptionReport(korisnikId, kucanstvoId, datumOd
       ukupna_potrosnja_kwh: parseFloat(ukupnaPotrosnja.toFixed(2)),
       prosjecna_dnevna_kwh: parseFloat(prosjecnaDnevna.toFixed(2)),
       broj_uredjaja: topDevices.length,
-      broj_dana: timeSeriesData.length
+      broj_dana: kalendarskiDani
     },
     timeSeries: timeSeriesData.map(item => ({
       datum: item.datum,

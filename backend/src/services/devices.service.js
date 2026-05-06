@@ -100,6 +100,41 @@ export async function listDevicesForHousehold(korisnikId, kucanstvoId) {
   }));
 }
 
+export async function getLiveConsumption(korisnikId, kucanstvoId) {
+  const db = getDb();
+  await assertHouseholdOwnership(db, korisnikId, kucanstvoId);
+
+  const [devices] = await db.query(
+    `SELECT u.uredjaj_id, u.naziv, u.tip_uredjaja, pu.ip_adresa
+     FROM uredjaj u
+     JOIN pametni_utikac pu ON u.uredjaj_id = pu.uredjaj_id
+     JOIN prostorija p ON u.prostorija_id = p.prostorija_id
+     WHERE p.kucanstvo_id = ? AND pu.status = 'aktivan' AND pu.ip_adresa IS NOT NULL`,
+    [kucanstvoId]
+  );
+
+  const results = await Promise.allSettled(
+    devices.map(async d => {
+      const data = await shellyService.getCurrentEnergyConsumption(d.ip_adresa, false);
+      return {
+        uredjaj_id: d.uredjaj_id,
+        naziv: d.naziv,
+        tip_uredjaja: d.tip_uredjaja,
+        snaga_w: Math.round(data.currentPower || 0),
+        ukljucen: data.isOn,
+      };
+    })
+  );
+
+  const liveDevices = results
+    .filter(r => r.status === 'fulfilled')
+    .map(r => r.value);
+
+  const totalW = liveDevices.reduce((sum, d) => sum + (d.snaga_w || 0), 0);
+
+  return { devices: liveDevices, totalW, timestamp: new Date() };
+}
+
 export async function createDeviceForHousehold(korisnikId, kucanstvoId, data) {
   const {
     prostorija_id,

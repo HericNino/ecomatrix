@@ -128,7 +128,7 @@ const Settings = () => {
         <form onSubmit={handleSave} className="settings-form">
           <div className="form-row">
             <div className="form-group">
-              <label htmlFor="cijena">Cijena po kWh</label>
+              <label htmlFor="cijena">Cijena (€/kWh)</label>
               <input
                 type="number"
                 id="cijena"
@@ -157,7 +157,7 @@ const Settings = () => {
           </div>
 
           <div className="price-preview">
-            <strong>Primjer:</strong> 100 kWh = {(cijenaKwh * 100).toFixed(2)} {valuta}
+            <strong>Primjer:</strong> 100 kWh × {cijenaKwh} €/kWh = {(cijenaKwh * 100).toFixed(2)} {valuta}
           </div>
 
           <button type="submit" className="save-btn" disabled={saving}>
@@ -170,7 +170,7 @@ const Settings = () => {
       <div className="settings-info">
         <h3>💡 Kako pronaći cijenu struje?</h3>
         <ul>
-          <li>Provjerite svoju zadnju račun za struju</li>
+          <li>Provjerite svoj zadnji račun za struju</li>
           <li>Cijena je obično navedena kao kn/kWh ili €/kWh</li>
           <li>Prosječna cijena u Hrvatskoj je oko 0.15 €/kWh</li>
         </ul>
