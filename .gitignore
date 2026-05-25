@@ -44,3 +44,15 @@ yarn-error.log*
 
 # Windows special files
 nul
+
+# Thesis / personal documents (do not commit)
+*.docx
+*_ZA_PROFESORA.md
+POGLAVLJE2_OSTATAK_ZA_PROFESORA.md
+React_za_profesora.md
+ZAVRSNI_RAD.md
+Zavrsni_Rad_*
+*opaske_extracted.txt
+
+# Local SQL dumps
+ecometrix.sql
