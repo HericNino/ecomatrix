@@ -56,3 +56,7 @@ Zavrsni_Rad_*
 
 # Local SQL dumps
 ecometrix.sql
+
+# Local helper scripts for document generation
+convert_to_docx.py
+make_poglavlje1.py
