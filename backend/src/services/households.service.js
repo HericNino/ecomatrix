@@ -1,5 +1,19 @@
 import { getDb } from "../config/db.js";
 
+async function getOrCreateMjesto(db, grad) {
+  if (!grad) return null;
+  const [existing] = await db.query(
+    'SELECT mjesto_id FROM mjesto WHERE naziv = ? AND drzava = ?',
+    [grad, 'Hrvatska']
+  );
+  if (existing.length > 0) return existing[0].mjesto_id;
+  const [res] = await db.query(
+    'INSERT INTO mjesto (naziv, drzava) VALUES (?, ?)',
+    [grad, 'Hrvatska']
+  );
+  return res.insertId;
+}
+
 async function assertOwnership(db, korisnikId, kucanstvoId) {
     const [rows] = await db.query(
             `SELECT kucanstvo_id 
@@ -18,15 +32,19 @@ async function assertOwnership(db, korisnikId, kucanstvoId) {
 export async function listHouseholds(korisnikId) {
     const db = getDb();
     const [rows] = await db.query(
-        `SELECT kucanstvo_id AS id_kucanstvo,
-            naziv,
-            adresa,
-            grad,
-            broj_clanova,
-            kvadratura AS povrsina
-       FROM kucanstvo
-      WHERE korisnik_id = ?
-      ORDER BY kucanstvo_id DESC`,
+        `SELECT k.kucanstvo_id AS id_kucanstvo,
+            k.naziv,
+            k.adresa,
+            k.mjesto_id,
+            m.naziv AS grad,
+            m.postanski_broj,
+            m.drzava,
+            k.broj_clanova,
+            k.kvadratura AS povrsina
+       FROM kucanstvo k
+       LEFT JOIN mjesto m ON k.mjesto_id = m.mjesto_id
+      WHERE k.korisnik_id = ?
+      ORDER BY k.kucanstvo_id DESC`,
     [korisnikId]
     );
 
@@ -37,13 +55,15 @@ export async function listHouseholds(korisnikId) {
   }));
 }
 
-export async function createHousehold(korisnikId,{naziv, adresa, grad, povrsina}) {
+export async function createHousehold(korisnikId, { naziv, adresa, grad, mjesto_id, povrsina }) {
  const db = getDb();
 
+  const resolvedMjestoId = mjesto_id || await getOrCreateMjesto(db, grad);
+
   const [res] = await db.query(
-    `INSERT INTO kucanstvo (korisnik_id, naziv, adresa, grad, kvadratura)
+    `INSERT INTO kucanstvo (korisnik_id, naziv, adresa, mjesto_id, kvadratura)
      VALUES (?, ?, ?, ?, ?)`,
-    [korisnikId, naziv, adresa, grad, povrsina || null]
+    [korisnikId, naziv, adresa, resolvedMjestoId || null, povrsina || null]
   );
   return {
     id_kucanstvo: res.insertId,
@@ -51,6 +71,7 @@ export async function createHousehold(korisnikId,{naziv, adresa, grad, povrsina}
     naziv,
     adresa,
     grad,
+    mjesto_id: resolvedMjestoId,
     povrsina
   };
 }
@@ -58,14 +79,18 @@ export async function createHousehold(korisnikId,{naziv, adresa, grad, povrsina}
 export async function getHouseholdById(korisnikId, kucanstvoId) {
     const db = getDb();
     const [rows] = await db.query(
-    `SELECT kucanstvo_id AS id_kucanstvo,
-            naziv,
-            adresa,
-            grad,
-            broj_clanova,
-            kvadratura AS povrsina
-       FROM kucanstvo
-      WHERE kucanstvo_id = ? AND korisnik_id = ?`,
+    `SELECT k.kucanstvo_id AS id_kucanstvo,
+            k.naziv,
+            k.adresa,
+            k.mjesto_id,
+            m.naziv AS grad,
+            m.postanski_broj,
+            m.drzava,
+            k.broj_clanova,
+            k.kvadratura AS povrsina
+       FROM kucanstvo k
+       LEFT JOIN mjesto m ON k.mjesto_id = m.mjesto_id
+      WHERE k.kucanstvo_id = ? AND k.korisnik_id = ?`,
     [kucanstvoId, korisnikId]
   );
 
@@ -80,7 +105,10 @@ export async function getHouseholdById(korisnikId, kucanstvoId) {
     id_kucanstvo: r.id_kucanstvo,
     naziv: r.naziv,
     adresa: r.adresa,
+    mjesto_id: r.mjesto_id,
     grad: r.grad,
+    postanski_broj: r.postanski_broj,
+    drzava: r.drzava,
     broj_clanova: r.broj_clanova,
     povrsina: r.povrsina,
     statistika: {
@@ -126,15 +154,17 @@ export async function createRoom(korisnikId, kucanstvoId, { naziv, tip, povrsina
   };
 }
 
-export async function updateHousehold(korisnikId, kucanstvoId, { naziv, adresa, grad, povrsina }) {
+export async function updateHousehold(korisnikId, kucanstvoId, { naziv, adresa, grad, mjesto_id, povrsina }) {
   const db = getDb();
   await assertOwnership(db, korisnikId, kucanstvoId);
 
+  const resolvedMjestoId = mjesto_id || await getOrCreateMjesto(db, grad);
+
   await db.query(
     `UPDATE kucanstvo
-     SET naziv = ?, adresa = ?, grad = ?, kvadratura = ?
+     SET naziv = ?, adresa = ?, mjesto_id = ?, kvadratura = ?
      WHERE kucanstvo_id = ?`,
-    [naziv, adresa, grad, povrsina || null, kucanstvoId]
+    [naziv, adresa, resolvedMjestoId || null, povrsina || null, kucanstvoId]
   );
 
   return {
@@ -142,6 +172,7 @@ export async function updateHousehold(korisnikId, kucanstvoId, { naziv, adresa, 
     naziv,
     adresa,
     grad,
+    mjesto_id: resolvedMjestoId,
     povrsina
   };
 }
@@ -206,7 +237,7 @@ export async function getHouseholdStats(korisnikId, kucanstvoId) {
      FROM uredjaj u
      JOIN prostorija p ON u.prostorija_id = p.prostorija_id
      LEFT JOIN pametni_utikac pu ON u.uredjaj_id = pu.uredjaj_id
-     WHERE p.kucanstvo_id = ? AND pu.ip_adresa IS NOT NULL`,
+     WHERE p.kucanstvo_id = ? AND pu.ip_adresa IS NOT NULL AND pu.status = 'aktivan'`,
     [kucanstvoId]
   );
 

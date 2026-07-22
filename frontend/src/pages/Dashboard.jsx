@@ -262,7 +262,7 @@ const Dashboard = () => {
           </div>
           <div className="stat-content">
             <span className="stat-label">Aktivni uređaji</span>
-            <div className="stat-value">{stats?.total_devices || 0}</div>
+            <div className="stat-value">{stats?.active_devices || 0}</div>
           </div>
         </div>
 

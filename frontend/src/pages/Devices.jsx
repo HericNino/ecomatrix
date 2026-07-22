@@ -136,19 +136,11 @@ const Devices = () => {
       setCollectingData({ ...collectingData, [deviceId]: true });
       await measurementsService.collectDeviceData(deviceId);
       toast.success(`Podaci prikupljeni sa ${device.naziv}`);
-
-      // Osvjezi mjerenje za ovaj uredjaj
-      const data = await measurementsService.getDeviceMeasurements(deviceId, null, null, 1);
-      if (data.measurements && data.measurements.length > 0) {
-        setDeviceMeasurements({
-          ...deviceMeasurements,
-          [deviceId]: data.measurements[0]
-        });
-      }
     } catch (err) {
-      toast.error('Greška pri prikupljanju podataka');
+      toast.error('Greška pri prikupljanju podataka — utičnica označena kao neaktivna');
     } finally {
       setCollectingData({ ...collectingData, [deviceId]: false });
+      await loadData();
     }
   };
 

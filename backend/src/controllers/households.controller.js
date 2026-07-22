@@ -25,16 +25,17 @@ export async function listHouseholds(req, res, next) {
 export async function createHousehold(req, res, next) {
     try {
         const korisnikId = req.user.id;
-        const { naziv, adresa, grad, povrsina } = req.body;
+        const { naziv, adresa, grad, mjesto_id, povrsina } = req.body;
 
-        if (!naziv || !adresa || !grad) {
-            return res.status(400).json({ message: 'Unesite naziv, adresu i grad' });
+        if (!naziv || !adresa) {
+            return res.status(400).json({ message: 'Unesite naziv i adresu' });
         }
 
         const created = await svc.createHousehold(korisnikId, {
             naziv,
             adresa,
-            grad,
+            grad: grad ?? null,
+            mjesto_id: mjesto_id ?? null,
             povrsina: povrsina ?? null
         });
 
@@ -102,16 +103,17 @@ export async function updateHousehold(req, res, next) {
   try {
     const korisnikId = req.user.id;
     const kucanstvoId = Number(req.params.id);
-    const { naziv, adresa, grad, povrsina } = req.body;
+    const { naziv, adresa, grad, mjesto_id, povrsina } = req.body;
 
-    if (!naziv || !adresa || !grad) {
-      return res.status(400).json({ message: 'Naziv, adresa i grad su obavezni.' });
+    if (!naziv || !adresa) {
+      return res.status(400).json({ message: 'Naziv i adresa su obavezni.' });
     }
 
     const updated = await svc.updateHousehold(korisnikId, kucanstvoId, {
       naziv,
       adresa,
-      grad,
+      grad: grad ?? null,
+      mjesto_id: mjesto_id ?? null,
       povrsina: povrsina ?? null
     });
 

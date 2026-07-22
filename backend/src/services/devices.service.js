@@ -479,7 +479,9 @@ export async function collectDataForDevice(korisnikId, uredjajId) {
 
   // Get device with plug info and household info
   const [devices] = await db.query(
-    `SELECT u.*, p.*, k.kucanstvo_id
+    `SELECT u.uredjaj_id, u.naziv, u.prostorija_id,
+            p.utikac_id, p.status, p.ip_adresa,
+            k.kucanstvo_id
      FROM uredjaj u
      JOIN pametni_utikac p ON u.uredjaj_id = p.uredjaj_id
      JOIN prostorija pr ON u.prostorija_id = pr.prostorija_id
@@ -495,8 +497,8 @@ export async function collectDataForDevice(korisnikId, uredjajId) {
   const device = devices[0];
 
   try {
-    // Collect data using Shelly service
-    const consumptionData = await shellyService.getCurrentEnergyConsumption(device.ip_adresa);
+    // Collect data using Shelly service (bez retry za ručni zahtjev — brži odgovor)
+    const consumptionData = await shellyService.getCurrentEnergyConsumption(device.ip_adresa, false);
 
     // Store measurement
     await db.query(
@@ -504,6 +506,14 @@ export async function collectDataForDevice(korisnikId, uredjajId) {
        VALUES (?, ?, ?, 1)`,
       [uredjajId, consumptionData.energyKwh, consumptionData.timestamp]
     );
+
+    // Vrati status na aktivan ako je bio neaktivan
+    if (device.status !== 'aktivan') {
+      await db.query(
+        `UPDATE pametni_utikac SET status = 'aktivan' WHERE utikac_id = ?`,
+        [device.utikac_id]
+      );
+    }
 
     // Check for high power consumption (over 3000W = 3kW is considered high)
     const HIGH_POWER_THRESHOLD = 3000; // Watts
@@ -530,6 +540,12 @@ export async function collectDataForDevice(korisnikId, uredjajId) {
       timestamp: consumptionData.timestamp
     };
   } catch (error) {
+    // Označi utičnicu kao neaktivnu
+    await db.query(
+      `UPDATE pametni_utikac SET status = 'neaktivan' WHERE utikac_id = ?`,
+      [device.utikac_id]
+    ).catch(() => {});
+
     // Create device failure notification
     await notificationService.notifyDeviceFailure(
       korisnikId,

@@ -218,7 +218,7 @@ const Households = () => {
     return (
       household.naziv.toLowerCase().includes(query) ||
       household.adresa.toLowerCase().includes(query) ||
-      household.grad.toLowerCase().includes(query)
+      (household.grad || '').toLowerCase().includes(query)
     );
   });
 

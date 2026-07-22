@@ -123,15 +123,16 @@ export async function collectDataFromDevice(uredjajId) {
       u.naziv AS uredjaj_naziv,
       pu.utikac_id,
       pu.ip_adresa,
-      pu.serijski_broj
+      pu.serijski_broj,
+      pu.status
     FROM uredjaj u
     JOIN pametni_utikac pu ON u.uredjaj_id = pu.uredjaj_id
-    WHERE u.uredjaj_id = ? AND pu.status = 'aktivan'`,
+    WHERE u.uredjaj_id = ?`,
     [uredjajId]
   );
 
   if (rows.length === 0) {
-    const err = new Error('Uređaj nema pridruženu aktivnu pametnu utičnicu.');
+    const err = new Error('Uređaj nema pridruženu pametnu utičnicu.');
     err.status = 404;
     throw err;
   }
@@ -144,26 +145,43 @@ export async function collectDataFromDevice(uredjajId) {
     throw err;
   }
 
-  const energyData = await shellyService.getCurrentEnergyConsumption(device.ip_adresa);
+  try {
+    const energyData = await shellyService.getCurrentEnergyConsumption(device.ip_adresa, false);
 
-  const measurement = await saveMeasurement(
-    device.uredjaj_id,
-    device.utikac_id,
-    energyData.energyKwh,
-    energyData.timestamp,
-    'automatsko'
-  );
+    // Vrati na aktivan ako je bio neaktivan
+    if (device.status !== 'aktivan') {
+      await db.query(
+        `UPDATE pametni_utikac SET status = 'aktivan' WHERE utikac_id = ?`,
+        [device.utikac_id]
+      );
+    }
 
-  return {
-    ...measurement,
-    uredjaj_naziv: device.uredjaj_naziv,
-    trenutna_snaga: energyData.currentPower,
-    napon: energyData.voltage,
-    struja: energyData.current,
-    frekvencija: energyData.frequency,
-    ukljucen: energyData.isOn,
-    temperatura: energyData.temperature
-  };
+    const measurement = await saveMeasurement(
+      device.uredjaj_id,
+      device.utikac_id,
+      energyData.energyKwh,
+      energyData.timestamp,
+      'automatsko'
+    );
+
+    return {
+      ...measurement,
+      uredjaj_naziv: device.uredjaj_naziv,
+      trenutna_snaga: energyData.currentPower,
+      napon: energyData.voltage,
+      struja: energyData.current,
+      frekvencija: energyData.frequency,
+      ukljucen: energyData.isOn,
+      temperatura: energyData.temperature
+    };
+  } catch (error) {
+    // Označi utičnicu kao neaktivnu jer nije dostupna
+    await db.query(
+      `UPDATE pametni_utikac SET status = 'neaktivan' WHERE utikac_id = ?`,
+      [device.utikac_id]
+    );
+    throw error;
+  }
 }
 
 export async function collectDataFromAllDevices(korisnikId, kucanstvoId) {
